@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+
+Name: @PACKAGE_NAME@
+Version: @VERSION@
+Description: YANG Compiler and Tools
+Requires: libxml-2.0 libxslt libslax
+Libs: @YANGC_LIBDIR@ @YANGC_LIBS@
+Cflags: @YANGC_INCLUDEDIR@
