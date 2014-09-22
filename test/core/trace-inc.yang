@@ -1,0 +1,373 @@
+/*
+ * Copyright (c) 1998-2008,2014, Juniper Networks, Inc.
+ * All rights reserved.
+ */
+
+submodule trace-inc {
+    template common-traceflags {
+	enum route {
+	    help "Trace routing information";
+	}
+	enum normal {
+	    help "Trace normal events";
+	}
+	enum general {
+	    help "Trace general events";
+	}
+	enum state {
+	    help "Trace state transitions";
+	}
+	enum policy {
+	    help "Trace policy processing";
+	}
+	enum task {
+	    help "Trace routing protocol task processing";
+	}
+	enum timer {
+	    help "Trace routing protocol timer processing";
+	}
+	enum "all" {
+	    help "Trace everything";
+	}
+    }
+
+    grouping sendrcv-trace-flags {
+	leaf send {
+	    help "Trace transmitted packets";
+	    type empty;
+	}
+	leaf send-detail {
+	    help "Trace transmitted packets in detail";
+	    type empty;
+	}
+	leaf receive {
+	    help "Trace received packets";
+	    type empty;
+	}
+	leaf receive-detail {
+	    help "Trace received packets in detail";
+	    type empty;
+	}
+    }
+
+    grouping traceattr-file {
+	leaf "file" {
+	    help "Trace file options";
+	    alias tracefile;
+	    flag remove-empty;
+	    type trace_file_type;
+	}
+    }
+
+    grouping traceattr-esp-file {
+	container "file" {
+	    help "Trace file options";
+	    alias tracefile;
+	    flag remove-empty;
+	    uses esp_trace_file_type;
+	}
+    }
+
+    grouping tracefile-leaf {
+	flag remove-empty;
+	use traceattr-file;
+    }
+
+    grouping tracefile-leaf-esp {
+	flag remove-empty;
+	use traceattr-esp-file;
+    }
+  
+    template traceflag-options-mode ($hide) {
+	leaf send {
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    help "Trace transmitted packets";
+	    type empty;
+	}
+	leaf receive {
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    help "Trace received packets";
+	    type empty;
+	}
+	leaf detail {
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    help "Trace detailed information";
+	    type empty;
+	}
+	leaf disable {
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    help "Disable this trace flag";
+	    type empty;
+	}
+    }
+
+    grouping traceflag-options {
+	call traceflag-options-mode();
+    }
+    grouping traceflag-options-depr {
+	call traceflag-options-mode($hide = "deprecated");
+    }
+
+    grouping tracefilter-name-leaf {
+	key name;
+	leaf name {
+	    help "Filter name";
+	    type string;
+	    match "^.{1,32}$";
+	    match-message "Must be a string of 32 characters or less";
+	}
+    }
+
+    grouping tracefilter-policy-leaf {
+	leaf-list policy {
+	    help "Filter policy";
+	    mandatory true;
+	    type policy-algebra;
+	}
+    }
+
+    template common-match-on-types {
+	enum prefix {
+	    help "Filter based on prefix";
+	}
+	enum route-leaf {
+	    help "Filter based on route leafs";
+	}
+	enum update-source {
+	    help "Filter based on source of incoming updates";
+	}
+    }
+
+    grouping tracefilter-header {
+	flag oneliner;
+	help "Filter to apply to tracing";
+    }
+
+    grouping tracefilter-matchon-attr {
+	leaf "match-on" {
+	    help "Argument on which to match";
+	    mandatory true;
+	    type enum uint {
+		/* augmented later */
+	    }
+	}
+    }
+
+    /*
+     * Common traceoptions objects
+     */
+    template traceoptions-file-common {
+	call traceoptions-file-common-with-args(10k, 1g, 128k, 2, 1000, 3);
+    }
+
+    grouping traceoptions-file-without-match {
+	use remote-trace-options;
+	container "file" {
+	    uses traceoptions-file-common;
+	}	
+    }
+
+    /*
+     * Common traceoptions objects
+     */
+    grouping traceoptions-file {
+	use remote-trace-options;
+	container "file" {
+	    uses traceoptions-file-common;
+	    leaf "match" {
+		help "Regular expression for lines to be logged";
+		type regular-expression;
+	    }
+	}
+    }
+
+    grouping traceoptions-file-without-remote-trace {
+	container "file" {
+	    uses traceoptions-file-common;
+	    leaf "match" {
+		help "Regular expression for lines to be logged";
+		type regular-expression;
+	    }
+	}
+    }
+
+    grouping syslog-leaf {
+	leaf syslog {
+	    help "Trace messages also go to syslog at 'info' level";
+	    hidden support;
+	    type empty;
+	}
+    }
+
+    template traceoptions-level-leaf-base ($hide) {
+	leaf level {
+	    alias tracelevel;
+	    help "Level of debugging output";
+	    if ($hide) {
+		hidden $hide;
+	    }
+
+	    type enum uint {
+		enum error {
+		    help "Match error conditions";
+		    define TRACE_LEVEL_ERR;
+		}
+		enum warning {
+		    help "Match warning messages";
+		    define TRACE_LEVEL_WARN;
+		}
+		enum notice {
+		    help "Match conditions that should be handled specially";
+		    define TRACE_LEVEL_NOTICE;
+		}
+		enum info {
+		    help "Match informational messages";
+		    define TRACE_LEVEL_INFO;
+		}
+		enum verbose {
+		    help "Match verbose messages";
+		    define TRACE_LEVEL_VERBOSE;
+		}
+		enum "all" {
+		    help "Match all levels";
+		    define TRACE_LEVEL_ALL;
+		}
+	    }
+        }
+    }
+
+    template traceoptions-level-leaf-with-default ($hide, $default) {
+	call traceoptions-level-leaf-base($hide);
+	leaf level {
+	    if ($default) {
+	        default $default;
+	    }
+	}
+    }
+
+    /*
+     * Many existing TRACEOPTIONS_LEVEL_LEAF references are at error level.
+     * Keep it to reduce code changes.
+     */
+    template traceoptions-level-leaf ($hide) {
+	call traceoptions-level-leaf-with-default($hide, $default = "error");
+    }
+
+    template traceoptions-control-flag ($hide) {
+	list "control-flag" {
+	    help "Tracing control flags";
+	    flag oneliner;
+
+	    if ($hide) {
+		hidden $hide;
+	    }
+
+	    key control_flag_name;
+	    leaf control_flag_name {
+		type enum uint {
+		    enum backtrace {
+			help "Allow stack backtrace";
+		    }
+		    enum code-flow {
+			help "Allow code-flow tracing";
+		    }
+		}
+	    }
+	}
+    }
+
+    /*
+     * Common traceoptions objects with args.
+     * Daemon which want to use their own value for files_min, files_max 
+     * size_min, size_max and their corresponding default value
+     * should use this macro
+     */
+    template traceoptions-file-with-args ($size-min, $size-max, $size-def,
+					  $files-min, $files-max, $files-def) {
+	use remote-trace-options;
+	container "file" {
+	    call traceoptions-file-common-with-args($size-min, $size-max,
+			$size-def, $files-min, $files-max, $files-def);
+	    leaf "match" {
+		help "Regular expression for lines to be logged";
+		type regular-expression;
+	    }
+	}
+    }
+
+    /*
+     * Common traceoptions objects with arguments
+     */
+    template traceoptions-file-common-with-args ($size-min, $size-max,
+		$size-def, $files-min, $files-max, $files-def) {
+	help "Trace file information";
+	flag oneliner remove-empty;
+
+	leaf filename {
+	    help "Name of file in which to write trace information";
+	    flag nokeyword;
+	    type string {
+		 range 1 .. DDL_MAXPATHLEN;
+	    }
+	    uses filename-check;
+	}
+	leaf size {
+	    help "Maximum trace file size";
+	    flag kilo;
+	    type uint {
+		range size_min .. size_max;
+	    }
+	    default size_def;
+	}
+	leaf files {
+	    help "Maximum number of trace files";
+	    alias "count";
+	    type uint {
+		range files_min .. files_max;
+	    }
+	    default files_def;
+	}
+	leaf world-readable {
+	    help "Allow any user to read the log file";
+	    type empty;
+	    flag allow-no;
+	}
+    }
+
+    /*
+     * Include this macro under "object traceoptions" along with 
+     * TRACEOPTIONS_FILE_* macro,  to get the <microsecond-stamp> leaf under 
+     * [edit ... traceoptions file].
+     */
+    template traceoptions-file-microseconds ($hide) {
+	use remote-trace-options;
+	container "file" {
+	    leaf microsecond-stamp {
+		help "Timestamp with microsecond granularity";
+		type empty;
+		if ($hide) {
+		    hidden $hide;
+		}
+	    }
+	}
+    }
+
+    grouping remote-trace-options {
+	leaf no-remote-trace {
+	    help "Disable remote tracing";
+	    jmust "system tracing" {
+		message "'no-remote-trace' is valid only "
+		    "when [system tracing] is configured";
+	    }
+	    type empty;
+	}
+    }
+}
