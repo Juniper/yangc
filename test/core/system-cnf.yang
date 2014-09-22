@@ -1,0 +1,4942 @@
+submodule junos-system {
+    /*
+     * Copyright (c) 1998-2008,2014, Juniper Networks, Inc.
+     * All rights reserved.
+     */
+
+    include "common-inc.yang";
+    include "common-priv-inc.yang";
+    include "pratform-inc.yang";
+    include "syslog-inc.yang";
+    include "trace-inc.yang";
+
+    param $MIN_CONNECTIONS = 1;
+    param $MAX_CONNECTIONS = 10;
+    param $MIN_RENEW_BEFORE_EXPIRATION = 0;
+    param $MAX_RENEW_BEFORE_EXPIRATION = 60;
+    param $MIN_RENEW_INTERVAL = 1;
+    param $MAX_RENEW_INTERVAL = 336;
+    param $MAX_LICENSE_SERVERS = 10;
+    param $MAX_TRACE_SERVERS = 1;
+    param $MAX_OPEN_FDS = 200;
+    param $DEFAULT_OPEN_FDS = 50;
+    param $MAX_DAYS_ERROR_LOG = 366;
+    param $MAXHOSTNAMELEN = 255; /* max hostname length on freebsd */
+
+    /* Max size of the encrypted password string */
+    param $MAX_ENCRYPTED_PASSWD_SIZE = 128;
+
+    grouping ssh-from-type {
+        /*
+         * Pattern-list used by both ssh-rsa and ssh-dsa, to list the hosts
+         * which can ssh to target system.
+         */
+        leaf from {
+            help "Pattern-list of allowed hosts";
+            type string;
+            match "^[\*\.a-zA-Z0-9,!?_-]+$" {
+                message "Pattern-list must not contain spaces";
+            }
+        }
+    }
+
+
+    template services-inetd-definition ($name, $inetstring, $hide) {
+        help "Enable " _ $name _ " service";
+        leaf connection-limit {
+            help "Maximum number of allowed connections";
+            if ($hide) {
+                hidden $hide;
+            }
+
+            action range {
+                daemon mgd;
+                function mgd_product_range_connections;
+            }
+
+            type uint {
+                ranged $IN_CONNECTIONS _ ".." _ $MAX_CONNECTIONS;
+                default 75;
+            }
+        }
+        leaf rate-limit {
+            help "Maximum number of connections per minute";
+            if ($hide) {
+                hidden $hide;
+            }
+
+            action range {
+                daemon mgd;
+                function mgd_product_range_connections;
+            }
+
+            type uint {
+                range $MIN_CONNECTIONS _ ".." _ $MAX_CONNECTIONS;
+                default 150;
+            }
+        }
+        option $inetstring;
+        action propagate {
+            daemon mgd;
+            function mgd_prop_services_to_inetd;
+        }
+    }
+
+    template udp-service ($service, $name = $service, $user = "root",
+                          $server, $args, $hide) {
+        call service-inetd-defintion($name,
+                $inetstring = $service _ " dgram udp wait "
+                _ $user _ " " _ $server _ " " _ $args, $hide);
+    }
+
+    template tcp-service ($service, $name = $service, $user = "$root",
+                          $server, $args, $hide) {
+        call services-inetd-defintion($name,
+                $inetstring = $service _ " stream tcp wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args, $hide);
+    }
+
+    template tcp-service-rt ($service, $name = $service, $instance = "shared",
+                             $user = "root", $server, $args, $hide) {
+        call services-inetd-defintion($name,
+                $inetstring = $service
+                _ " stream tcp/rt=" _ $instance _ " wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args, $hide);
+    }
+
+    template tcp-and-tcp6-service ($service, $name = $service,
+                                   $user = "root", $server,
+                                   $args, $hide) {
+        call services-inetd-defintion($name,
+                $inetstring = $service _ " stream tcp wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args _ "\n"
+                _ $service _ " stream tcp6 wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args, $hide);
+    }
+
+    template tcp-and-tcp6-service-rt ($service, $name = $service,
+                                      $instance = "shared",
+                                      $user = "root", $server, $args, $hide) {
+        call services-inetd-defintion($name,
+                $inetstring = $service
+                _ " stream tcp/rt=" _ $instance _ " wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args _ "\n"
+                _ $service
+                _ " stream tcp6/rt=routing_instance wait/%d/%d "
+                _ $user _ " " _ $server _ " " _ $args, $hide);
+    }
+
+    augment system {
+        flag no-aid;
+
+        leaf host-name {
+            help "Hostname for this router";
+            require system;
+            feature-id "sfc-visible";
+
+            type string {
+                range "0.." _ $MAXHOSTNAMELEN;
+            }
+
+            match "^[[:alnum:]._-]+$" {
+                message "Must be a string of alphanumericals, "
+                    "dashes or underscores";
+            }
+
+            option "hostname";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_host_name;
+            }
+
+            notify "rpd dcd eventd mgd httpd-gk";
+        }
+
+        leaf domain-name {
+            help "Domain name for this router";
+            require system;
+            cname "hc_domain";
+            type string;
+            match "^[[:alnum:]._-]+$" {
+                message "Must be a string of alphanumericals, "
+                    "dashes or underscores";
+            }
+
+            action propagate {
+                daemon mgd;
+                function mgd_prop_domain_to_rc;
+            }
+            notify dhcpd;
+        }
+
+        leaf-list domain-search {
+            help "List of domain names to search";
+            require system;
+            cname "hc_domain_search";
+            type string;
+            match "^[[:alnum:]._-]+$" {
+                message "Must be a string of alphanumericals, "
+                    "dashes or underscores";
+            }
+            action propagate {
+                daemon mgd;
+                function mgd_prop_domain_search_to_rc;
+            }
+        }
+
+        container backup-router {
+            help "IPv4 router to use while booting";
+            alias inet-backup-router;
+            require system;
+            flag oneliner;
+            cprefix "hc";
+            notify dcd;
+
+            leaf address {
+                help "Address of router to use while booting";
+                type ipv4addr;
+                flag nokeyword;
+                mandatory true;
+            }
+
+            leaf-list destination {
+                help "Destination network reachable through the router";
+                type ipv4prefix;
+                action mandatory {
+                    daemon mgd;
+                    function
+                       "return (mgd_needs_destination(daap) == ACCEPTABLE_OK)";
+                }
+                notify rpd;
+            }
+        }
+
+        container inet6-backup-router {
+            help "IPv6 router to use while booting";
+            feature-id "ipv6";    
+            flag allow-struct;
+            require system;
+            flag oneliner;
+            cprefix "hc";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_inet6_backup_router;
+            }
+        
+            leaf address {
+                help "Address of router to use while booting";
+                type ipv6addr;
+                flag nokeyword;
+                mandatory true;
+            }
+
+            leaf destination {
+                help "Destination network reachable through the router";
+                type ipv6prefix;
+                action mandatory {
+                    daemon mgd;
+                    function
+                       "return (mgd_needs_destination(daap) == ACCEPTABLE_OK)";
+                }
+                notify rpd;
+            }
+        }
+
+        leaf time-zone {
+            help "Time zone name or POSIX-compliant time zone string";
+            require system;
+            type string;
+            default "UTC";
+            action expand {
+                daemon mgd;
+                function mgd_expand_timezones;
+            }
+            action pre-assign {
+                daemon mgd;
+                function mgd_timezone_preassign;
+            }
+            action propagate {
+                daemon mgd;
+                function mgd_prop_timezone;
+            }
+
+            /*
+             * Allow chars as specified in POSIX.1 standard for timezones.
+             */
+            match "^[a-zA-Z0-9:_+-/,\\\\.]{3,}$" {
+                message "Invalid string";
+            }
+
+            units "<continent>/<major-city> or <time-zone>";
+            notify "httpd-gk eventd mgd mspd";
+        }
+
+        leaf use-imported-time-zones {
+            help "Use locally generated time-zone database";
+            type empty;
+        }
+
+        leaf debugger-on-panic {
+            help "Enter the kernel debugger on software failure";
+            hidden guru support;
+            flag no-fips;
+            require system;
+            type empty;
+            option "debugger_on_panic";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf debugger-on-break {
+            help "Enter the kernel debugger on console BREAK";
+            hidden guru support;
+            flag no-fips;
+            require system;
+            type empty;
+            option "debugger_on_break";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf no-debugger-on-alt-break {
+            help "Disallow kernel debugger on console alt-break";
+            hidden guru support;
+            flag no-fips;
+            require system;
+            type empty;
+            option "no_debugger_on_alt_break";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf panic-on-nmi {
+            help "Panic the system upon getting multibit ECC error";
+            flag allow-no;
+            hidden guru support;
+            require system;
+            type empty;
+            option "panic_on_nmi";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+                
+            }
+        }
+
+        leaf auto-snapshot {
+            help "Enable auto-snapshot when boots from alternate slice";
+            require system;
+            product $EX_SERIES;
+            type empty;
+            option "auto-snapshot";
+            notify mgd;
+        }
+
+        leaf extended-memory-test {
+            help "Enable BIOS extended memory tests to catch "
+                "ECC multibit errors";
+            flag allow-no;
+            hidden guru support;
+            require system;
+            type empty;
+            option "extended_mem_test";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf thermal-control-circuit {
+            help "Enable RE-4 thermal control circuit (TCC)";
+            flag allow-no;
+            hidden guru support;
+            require system;
+            type empty;
+            option "thermal_control_circuit";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf default-address-selection {
+            help "Use system address for locally originated traffic";
+            require system;
+            type empty;
+            option "default_address_selection";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf nd-maxmcast-solicit {
+            help "Set maximum multicast solicit";
+            type int;
+            option "nd6_mmaxtries";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf nd-retrasmit-timer {
+            help "Set retransmit timer";
+            type int;
+            option "nd6_prune";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf no-neighbor-learn {
+            help "Disable neighbor address learning";
+            alias no-arp-learn;
+            require system;
+            type empty;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_neighbor_learn;
+            }
+        }
+
+        leaf no-multicast-echo {
+            help "Disable ICMP echo on multicast addresses"; 
+            require system;
+            feature-id "sfc-visible";
+            type empty;
+            option "multicast_echo";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_multicast_echo;
+            }
+        }
+
+        leaf no-redirects {
+            help "Disable ICMP redirects";
+            require system;
+            type empty;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_redirects;
+            }
+        }
+
+        leaf no-redirects-ipv6 {
+            help "Disable IPV6 ICMP redirects";
+            require system;
+            type empty;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_redirects_ipv6;
+            }
+        }
+
+        leaf no-ping-record-route {
+            help "Do not insert IP address in ping replies";
+            type empty;
+            option "ip_rr";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_ping_record_route;
+            }
+        }
+
+        leaf no-ping-time-stamp {
+            help "Do not insert time stamp in ping replies";
+            type empty;
+            option "ip_ts";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_no_ping_time_stamp;
+            }
+        }
+
+        leaf no-transit-management-ethernet {
+            help "Disable transit routing b/w management port and "
+                "user ports on PFE(s)";
+            hidden support;
+            type empty;
+            option "transit_re";
+            product $EX_SERIES;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        choice to-dump-on-panic {
+            container dump-on-panic {
+                help "Enable system dumps on software failure";
+                presence "Enable system dumps on software failure";
+                flag oneliner;
+                hidden guru support;
+                require system;
+                define DDLAID_DUMP_ON_PANIC;
+
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_dump_on_panic;
+                }
+
+                leaf complete {
+                    hidden guru support;
+                    help "Enable complete system dump on software failure";
+                    type empty;
+                }
+            }
+
+            leaf no-dump-on-panic {
+                help "Disable system dump on software failure";
+                hidden guru support;
+                require system;
+                type empty;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_dump_on_panic;
+                }
+            }
+        }
+
+        leaf dump-device {
+            help "Device to record memory snapshots on operating "
+                "system failure";
+            require system;
+
+            type enumeration {
+                enum device {
+                    help "Area to record software failure memory snapshots";
+                    hidden deprecated;
+                    flag nokeyword text-choice;
+                    match "^/dev/" {
+                        message "Must be under '/dev/'";
+                    }
+                }
+
+                enum boot-device {
+                    help "Use boot device for software failure memory "
+                        "snapshots";
+                    product $J_SERIES;
+                }
+
+                enum usb {
+                    help "Use device connected to USB port for software "
+                        "failure memory snapshots";
+                    product $J_SERIES;
+                }
+
+                enum compact-flash {
+                    help "Use the compact flash for software failure "
+                        "memory snapshots";
+                    product $J_SERIES;
+                }
+
+                enum removable-compact-flash {
+                    help "Use the removable compact flash for "
+                        "software failure memory snapshots";
+                    product pepsi12 pepsi45 j2320 j2350 jsr2320 jsr2350;
+                }
+            }
+            action propagate {
+                daemon mgd;
+                function mgd_prop_config_dumpdev;
+            }
+        }
+
+        container arp {
+            help "ARP settings";
+            feature-id "sfc-visible";
+
+            dcf-option "net.juniper.datacenter.sfc.ddl.GlobalObject" {
+                "role" "NETWORK_INE";
+                "role" "SERVER_INE";
+                "downloadAlwaysRole" "NETWORK_INE";
+                "downloadAlwaysRole" "SERVER_INE";
+                "noName" "true";
+            }
+
+            leaf aging-timer {
+                help "Change the ARP aging time value";
+                type int {
+                    range 1 .. 240;
+                }
+                units minutes; 
+                option "arp_aging_timer";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            container interfaces {
+                help "Logical interface on which to specify ARP aging timer";
+                flag remove-empty;
+                notify dcd;
+                list arp-interface {
+                    flag nokeyword homogeneous delta-list;
+                    uses arp-interface-type;
+                }
+            }
+            leaf passive-learning {
+                help "ARP passive learning";
+                type empty;
+                option "arp_passive_learning";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+                product-exclude FX_SERIES_DCF;
+            }
+            leaf purging {
+                help "ARP purging when link goes down";
+                type empty;
+                option "arp_purging";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf gratuitous-arp-on-ifup {
+                help "Gratuitous ARP announcement on interface up";
+                type empty;
+                option "grat_arp_on_ifup";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf gratuitous-arp-delay {
+                help "Delay gratuitous ARP request";
+                type int;
+                option "grat_arp_delay";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf arp-request-bump-priority {
+                help "Send ARP requests on high priority queue";
+                hidden support;
+                type empty;
+                option "arp_request_bump_priority";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf no-proxy-arp-overwrite {
+                help "Do not overwrite proxy ARP entry";
+                hidden support;
+                type empty;
+                option "arp_no_proxy_arp_overwrite";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+                product $J_SERIES_USP $JSRXNLE $JSSG_SERIES;
+            }
+
+        }
+
+        leaf saved-core-files {
+            help "Number of saved core files per executable";
+            cname "hc_ncores";
+            require system;
+            product-exclude qfx3000;
+            type uint {
+                range 1 .. 10;
+            }
+            default 5;
+            option "debug_ncores";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf sparse-core-format {
+            help "Use sparse corefile format for process cores";
+            hidden unreleased;
+            require system;
+            type empty;
+            option "debug_corefmt";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf saved-core-context {
+            help "Save context information for core files";
+            flag allow-no;
+            flag advanced;
+            product-exclude qfx3000;
+            cname "hc_core_context";
+            require system;
+            type empty;
+            option "debug_save_core_context";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf ipc-relay {
+            help "Enable relay based PFE state propagation";
+            hidden support;
+            notify relayd;
+            type empty;
+        }
+
+        container kernel-replication {
+            help "Kernel replication";
+
+            leaf ifs-resource-release-ack-recv-frequency  {
+                help "Change the ifstate resource ack timeout period";
+                hidden guru support;
+                require system;
+                type int;
+                units seconds;
+                option "ifs_resource_release_ack_recv_frequency";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            container traceoptions {
+                help "Kernel Replication trace options";
+                define KERNEL_REPL_TRACEOPTIONS;
+                hidden support;
+                flag remove-empty;
+                notify ksyncd;
+
+                TRACEOPTIONS_FILE_WITHOUT_MATCH;
+
+                leaf "level" {
+                    help "Verbosity level";
+
+                    type enumeration {
+                        enum brief {
+                            help "Trace important messages";
+                            define KERNEL_REPL_TRACEOPTIONS_LEVEL_BRIEF;
+                        }
+                        enum activity {
+                            help "Trace activity messages";
+                            define KERNEL_REPL_TRACEOPTIONS_LEVEL_ACTIVITY
+                                }
+                        enum update {
+                            help "Trace update messages";
+                            define KERNEL_REPL_TRACEOPTIONS_LEVEL_UPDATE;
+                        }
+                        enum detail {
+                            help "Trace details of each kernel update";
+                            define KERNEL_REPL_TRACEOPTIONS_LEVEL_DETAIL;
+                        }
+                    }
+                    default brief;
+                }
+
+                list "flag" {
+                    help "Trace events";
+                    flag oneliner;
+                    key flag-name;
+                    leaf "flag-name" {
+                        type enumeration {
+                            enum eventhandler {
+                                help "Trace event handler events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_EVENT ;
+                            }
+                            enum rtsock {
+                                help "Trace routing socket events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_RTS ;
+                            }
+                            enum ipc {
+                                help "Trace IPC events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_IPC ;
+                            }
+                            enum route {
+                                help "Trace route events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_RT ;
+                            }
+                            enum nexthop {
+                                help "Trace next-hop database events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_NH ;
+                            }
+                            enum interface {
+                                help "Trace interface events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_IF ;
+                            }
+                            enum firewall {
+                                help "Trace firewall events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_DFW ;
+                            }
+                            enum cos {
+                                help "Trace Class of Service events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_COS ;
+                            }
+                            enum pfe {
+                                help "Trace Packet Forwarding Engine events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_PFE ;
+                            }
+                            enum sample {
+                                help "Trace sample events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_SAMPLE ;
+                            }
+                            enum monitor {
+                                help "Trace monitor events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_MON ;
+                            }
+                            enum sysconf {
+                                help "Trace system configurables events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_RE ;
+                            }
+                            enum config {
+                                help "Trace UI events and configuration changes";
+                                define KSYNCD_TRACEOPTIONS_FLAG_CFG ;
+                            }
+                            enum pic {
+                                help "Trace PIC state events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_PIC ;
+                            }
+                            enum asp {
+                                help "Trace ASP configuration events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_ASP ;
+                            }
+                            enum stp {
+                                help "Trace spanning tree protocol events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_STP ;
+                            }
+                            enum bd {
+                                help "Trace bridge domain events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_BD ;
+                            }
+                            enum ifbd {
+                                help "Trace ifbd events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_IFBD ;
+                            }
+
+                            enum "all" {
+                                help "Trace all events";
+                                define KSYNCD_TRACEOPTIONS_FLAG_ALL ;
+                            }
+                        }
+                        default "all";
+                    }
+                }
+            }
+        }
+
+        leaf on-peer-replication-error-backup {
+            help "Action when backup Routing Engine reports replication error";
+            require system;
+            hidden support;
+            product $DUAL_RE_PLATFORMS;
+            alias on-peer-replication-error;
+
+            /*
+             * Right now specifying a choice of type enum uint doesnt work.
+             * So using type string. rc.ui then parses this and converts it
+             * to a number. If you add/change anything here, pls. take a look
+             * at rc.ui where replication_error_threshold is handled.
+             */
+            type enumeration {
+                enum log {
+                    help "Log a message when replication error is received";
+                }
+                enum panic {
+                    help "Panic when replication error is received";
+                }
+            }
+            option "replication_error_threshold_bkup";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+
+        leaf on-peer-replication-error-lcc {
+            help "Action when LCC reports replication error";
+            require system;
+            hidden support;
+            product $TX_SERIES;
+            action acceptable {
+                daemon mgd;
+                function mgd_is_switch_or_lcc_chassis;
+            }
+            /*
+             * Right now specifying a choice of type enum uint doesnt work.
+             * So using type string. rc.ui then parses this and converts it
+             * to a number. If you add/change anything here, pls. take a look
+             * at rc.ui where replication_error_threshold is handled.
+             */
+            type enumeration {
+                enum log {
+                    help "Log a message when replication error is received";
+                }
+                enum panic {
+                    help "Panic when replication error is received";
+                }
+            }
+            option "replication_error_threshold_lcc";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf mirror-flash-on-disk {
+            help "Mirror contents of the flash drive onto hard drive";
+            require system;
+            flag advanced;
+            type empty;
+            option "mirror_flash_on_disk";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_flash_options_to_rc;
+            }
+            feature-id "mirror-flash-on-disk";
+        }
+
+        leaf arp-cache-size {
+            help "Size of ARP cache"; 
+            hidden guru;
+            type uint;
+            option "arp_cache_size_threshold";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        container icmp-rate-limit {
+            help "Rate-limiting parameters for ICMP messages";
+            flag remove-empty oneliner;
+            hidden guru support deprecated;
+            cname icmp_rate_limit;
+
+            must '(! "system internet-options icmpv4-rate-limit")' {
+                message "incompatible with "
+                    "'system internet-options icmpv4-rate-limit'";
+            }
+
+            leaf packet-rate {
+                help "ICMP rate-limiting packets earned per second";
+                type uint;
+                default 1000;
+                option "icmp_tokenrate";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf bucket-size {
+                help "ICMP rate-limiting maximum bucket size";
+                type uint;
+                units seconds;
+                default 5;
+                option "icmp_bucketsize";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+        }
+
+        leaf tcp-ack-rst-syn {
+            help "Send ACKs for in-window RSTs and SYN packets on TCP connections";
+            hidden guru support deprecated;
+            require system;
+            type empty;
+            option "tcp_rst_syn_ack";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        container internet-options {
+            help "Tunable options for Internet operation";
+            flag remove-empty;
+
+            container icmpv4-rate-limit {
+                help "Rate-limiting parameters for ICMPv4 messages";
+                flag remove-empty oneliner;
+                alias icmp-rate-limit;
+                cname icmpv4_rate_limit;
+                cprefix irlv4;
+                define DDLAID_IRLV4;
+                must '(! "system icmp-rate-limit")' {
+                    message "incompatible with 'system icmp-rate-limit'";
+                }
+
+                leaf packet-rate {
+                    type uint;
+                    help "ICMP rate-limiting packets earned per second";
+                    default 1000;
+                    option "icmpv4_tokenrate";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                    }
+                }
+                leaf bucket-size {
+                    type uint;
+                    units seconds;
+                    help "ICMP rate-limiting maximum bucket size";
+                    default 5;
+                    option "icmpv4_bucketsize";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                    }
+                }
+            }
+
+            container icmpv6-rate-limit {
+                help "Rate-limiting parameters for ICMPv6 messages";
+                product-exclude FX_SERIES_STANDALONE;
+                flag remove-empty oneliner;
+                cname icmpv6_rate_limit;
+                cprefix irlv6;
+                define DDLAID_IRLV6;
+
+                leaf packet-rate {
+                    help "ICMPv6 rate-limiting packets earned per second";
+                    type uint;
+                    default 1000;
+                    option "icmpv6_tokenrate";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                    }
+                }
+                leaf bucket-size {
+                    help "ICMPv6 rate-limiting maximum bucket size";
+                    type uint;
+                    units seconds;
+                    default 5;
+                    option "icmpv6_bucketsize";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                    }
+                }
+            }
+
+            leaf path-mtu-discovery {
+                help "Enable Path MTU discovery on TCP connections";
+                flag allow-no;
+                require system;
+                type empty;
+                option "path_mtu_discovery";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf gre-path-mtu-discovery {
+                help "Enable path MTU discovery for GRE tunnels";
+                feature-id "gre";
+                flag allow-no;
+                require system;
+                product-exclude JSSG_SERIES;
+                type empty;
+                option "gre_path_mtu_discovery";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf ipip-path-mtu-discovery {
+                help "Enable path MTU discovery for IP-IP tunnels";
+                flag allow-no;
+                require system;
+                product-exclude JSSG_SERIES;
+                type empty;
+                option "ipip_path_mtu_discovery";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            container source-port {
+                help "Source port selection parameters";
+                flag remove-empty;
+
+                leaf upper-limit {
+                    help "Specify upper limit of source port selection range";
+                    require system; 
+                    type uint {
+                        range 5000 .. 65535;
+                    }
+                    option "portrange_last";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                    }
+                }
+            }
+
+            leaf source-quench {
+                help "React to incoming ICMP Source Quench messages";
+                flag allow-no;
+                require system;
+                type empty;
+                option "source_quench";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf tcp-mss {
+                help "Maximum value of TCP MSS for IPV4 traffic";
+                product $J_SERIES;
+                require system;
+                type uint {
+                    range 64 .. 65535;
+                }
+                units bytes;
+                notify chassisd;
+            }
+        
+            leaf tcp-reset-syn-acknowledge {
+                help "Send ACKs for in-window RSTs and SYN packets "
+                    "on TCP connections";
+                require system;
+                hidden guru support;
+                type empty;
+                option "tcp_rst_syn_ack";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf tcp-drop-synfin-set {
+                help "Drop TCP packets that have both SYN and FIN flags";
+                require system; 
+                type empty;
+                option "tcp_drop_synfin";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf no-tcp-rfc1323 {
+                help "Disable RFC 1323 TCP extensions";
+                require system;
+                type empty;
+                must "system internet-options no-tcp-rfc1323-paws" {
+                    message "RFC 1323 Protection Against Wrapped Sequence "
+                        "Number extension must be disabled";
+                }
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_no_tcp_rfc1323;
+                }
+            }
+
+            leaf no-tcp-rfc1323-paws {
+                help "Disable RFC 1323 Protection Against Wrapped "
+                    "Sequence Number extension";
+                require system;
+                type empty;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_no_tcp_rfc1323_paws;
+                }
+            }
+
+            leaf ipv6-reject-zero-hop-limit {
+                help "Enable dropping IPv6 packets with zero hop-limit";
+                feature-id "ipv6";
+                flag allow-no;
+                require system;
+                product-exclude $JSSG_SERIES $JSRXNLE;
+                type empty;
+                option "ip6_hlim_zero_reject";
+                action propagate {
+                        daemon mgd;
+                        function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf ipv6-duplicate-addr-detection-transmits {
+                help "IPv6 Duplicate address detection transmits";
+                feature-id "ipv6";
+                type uint;
+                option "ip6_dad_count";
+                default 3;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf ipv6-path-mtu-discovery {
+                help "Enable IPv6 Path MTU discovery";
+                feature-id "ipv6";
+                flag allow-no;
+                require system;
+                product-exclude JSSG_SERIES;
+                type empty;
+                option "ip6_pmtu_discovery";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+
+            leaf ipv6-path-mtu-discovery-timeout {
+                help "IPv6 Path MTU Discovery timeout";
+                feature-id "ipv6";
+                type uint {
+                    range $MIN_IPV6_PMTU_TIMEOUT .. $MAX_IPV6_PMTU_TIMEOUT;
+                }
+                units minutes;
+                require system;
+                product-exclude $JSSG_SERIES;
+                default 10;
+                option "ip6_pmtu_timeout";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+        
+            leaf no-tcp-reset {
+                help "Do not send RST TCP packet for packets sent "
+                    "to non-listening ports";
+                require system;
+        
+                type enumeration {
+                    enum none {
+                        help "RST TCP Packet service is disabled";
+                        hidden unreleased;
+                    }
+                    enum drop-tcp-with-syn-only {
+                        help "Drop only those TCP Packets with SYN bit";
+                    }
+                    enum drop-all-tcp {
+                        help "Drop all TCP Packets";
+                    }
+                }
+                option "no_tcp_reset";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }
+            leaf route-nexthop-max-delayed-unrefs {
+                help "Maximum number of pending delay unrefs on nexthops";
+                require system;
+                hidden support;
+                type uint;
+                default 10000;
+                option "rt_nh_max_delayed_unrefs";
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_value_to_rc;
+                }
+            }    
+
+        }
+
+        leaf-list authentication-order {
+            help "Order in which authentication methods are invoked";
+            feature-id "sfc-visible";
+            cname auth_order;
+            cprefix auo;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_authentication_order;
+            }
+            /*
+             * login auth sufficient pam_skey.so
+             * login auth sufficient pam_radius.so            try_first_pass
+             * login auth sufficient pam_tacplus.so                  try_first_pass
+             * login auth requisite  pam_cleartext_pass_ok.so
+             * login auth required   pam_unix.so              try_first_pass
+             */
+
+            type enumeration {
+                enum otp-md4 {                /* not yet supported! */
+                    help "One-time passwords (MD4 hash)";
+                    hidden unreleased;
+                    option "pam_skey.so";
+                }
+                enum radius {
+                    help "Remote Authentication Dial-In User Service";
+                    option "pam_radius.so conf=/var/etc/pam_radius.conf template_user=remote";
+                }
+                enum "tacplus" {
+                    help "TACACS+ authentication services";
+                    option "pam_tacplus.so conf=/var/etc/pam_tacplus.conf template_user=remote";
+                }
+                enum password {
+                    help "Traditional password authentication";
+                    option "pam_unix.so";
+                }
+            }
+        }
+
+        container location {
+            help "Location of the system, in various forms";
+            feature-id "sfc-visible";
+            flag oneliner-plus remove-empty;
+            notify chassisd ;
+            uses location-type;
+        }
+
+        container ports {
+            help "Craft interface RS-232 ports";
+            flag remove-empty;
+            cname system_port;
+            cprefix sp;
+            define DDLAID_SP;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_ports_to_ttys;
+            }
+            notify init;
+
+            container internal {
+                help "Internal console";
+                flag oneliner;
+                flag allow-struct;
+                hidden unreleased;
+                cname system_port_internal;
+                cprefix spi;
+                define DDLAID_SPI;
+
+                leaf disable {
+                    help "Disable internal console";
+                    type empty;
+                }
+
+                leaf insecure {
+                    help "Disallow superuser access";
+                    type empty;
+                }
+            }
+
+            container console {
+                help "Console port";
+                uses tty-port-type;
+                flag remove-empty;
+            }
+
+            container auxiliary {
+                help "Auxiliary port";
+                uses tty-port-type;
+                flag remove-empty;
+            }
+        }
+
+        container diag-port-authentication {
+            help "Authentication for the diagnostic port";
+            notify chassisd;
+            flag remove-empty;
+            require admin;
+            feature-id "diag-port-authentication";
+
+            leaf plain-text-password {
+                hidden from-xml;
+                type empty;
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_unix_plain_passwd;
+                }
+                help "Prompt for plain text password (autoencrypted)";
+            }
+
+            leaf plain-text-password-value {
+                help "Plain text password";
+                hidden from-cli;
+                type string;
+                flag secret;
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_unix_plain_passwd_value;
+                }
+            }
+
+            leaf encrypted-password {
+                uses encrypted-password-type;
+            }
+        }
+
+        container pic-console-authentication {
+            help "Authentication for the console port on PICs";
+            uses action-dont-recurse;
+            product-exclude $JAVA;
+            flag remove-empty;
+            require admin;
+            notify dcd;
+
+            leaf plain-text-password {
+                help "Prompt for plain text password (autoencrypted)";
+                hidden from-xml;
+                type empty;
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_unix_plain_passwd;
+                }
+            }
+
+            leaf plain-text-password-value {
+                help "Plain text password";
+                hidden from-cli;
+                type string;
+                flag secret;
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_unix_plain_passwd_value;
+                }
+            }
+
+            leaf encrypted-password {
+                uses encrypted-password-type;
+            }
+        }
+        
+        leaf root-authentication {
+            help "Authentication information for the root login";
+            feature-id "sfc-visible";
+            uses authentication-type;
+            require admin;
+            action mandatory {
+                daemon mgd;
+                function "return mgd_is_unattended(daap) != ACCEPTABLE_OK";
+            }
+        }
+
+        list name-server {
+            help "DNS name servers";
+            require system;
+            flag allow-struct;
+            uses nameserver-type;
+            feature-id "name-server";
+            notify eventd dhcpd rmopd mspd;
+        }
+
+        container name-resolution {
+            help "Configure hostname resolution behaviour";
+            require system;
+            flag remove-empty;
+            hidden unreleased;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_dns_timeout;
+            }
+            define DDLAID_NAME_RESOLUTION;
+
+            container no-resolve-on-input {
+                help "Resolve hostnames at time of use than at "
+                    "the of the input";
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_nores_on_input;
+                }
+                action delete {
+                    daemon mgd;
+                    function mgd_delete_nores_on_input;
+                }
+                notify mgd;
+                notify hostname-cached;
+                action enable-process {
+                    process DNAME_HOSTNAME_CACHED;
+                }
+
+                leaf cache-refresh-interval {
+                    help "Refresh the cache of hostname-to-IP-address "
+                        "mappings at regular intervals";
+                    type uint {
+                        range 15 .. max;
+                    }
+                    units seconds;
+                }
+                leaf timeout {
+                    help "Timeout for a DNS query";
+                    type uint {
+                        range 1 .. 90;
+                    }
+                    default 2;
+                    units seconds;
+                }
+                leaf retries {
+                    help "Retry attempts for a timedout DNS query";
+                    type uint {
+                        range 1 .. 10;
+                    }
+                    default 2;
+                }
+
+                container traceoptions {
+                    help "Trace options for hostname caching process";
+                    flag remove-empty;
+                    require trace;
+                    uses traceoptions-file-without-match;
+
+                    list "flag" {
+                        help "Tracing parameters";
+                        define DDLAID_NAMERES_TRACEOPTIONS_FLAG;
+                        key flag-name;
+                        flag oneliner;
+
+                        leaf flag-name {
+                            type enumeration {
+                                enum "all" {
+                                    help "Trace all operations";
+                                    define NAMERES_TRACE_ALL;
+                                }
+                                enum config {
+                                    help "Trace configuration processing";
+                                    define NAMERES_TRACE_CONFIG;
+                                }
+                                enum updates {
+                                    help "Updates to hostname-to-IP-address "
+                                        "mappings";
+                                    define NAMERES_TRACE_UPDATE;
+                                }
+                                enum general {
+                                    help "All other trace options";
+                                    define NAMERES_TRACE_GEN;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            leaf timeout {
+                help "Timeout for a DNS query";
+                type uint {
+                    range 1 .. 90;
+                }
+                default 5;   /* libc resolver's default */
+                units seconds;
+                hidden unreleased;
+            }
+
+            leaf retries {
+                help "Retry attempts for a timedout DNS query";
+                type uint {
+                    range 1 .. 10;
+                }
+                default 2; /* libc resolver's default */
+                hidden unreleased;
+            }
+        }
+
+        list radius-server {
+            help "RADIUS server configuration";
+            feature-id "sfc-visible";
+            uses radius-server-type;
+            notify l2tpd pppd auditd;
+        }
+
+        leaf dynamic-profile-options {
+            help "Dynamic profile options";
+            uses dynamic-profile-option-type;
+            flag remove-empty;
+        }
+
+        list tacplus-server {
+            help "TACACS+ server configuration";
+            feature-id "sfc-visible";
+            uses tacplus-server-type;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_tacplus_servers;
+            }
+            notify mgd;
+        }
+
+        container radius-options {
+            help "RADIUS options";
+            flag remove-empty;
+            notify auditd;
+
+            leaf password-protocol {
+                help "Specify password protocol used in RADIUS packets";
+                type enumeration {
+                    enum mschap-v2 {
+                        help "MSCHAP version 2";
+                    }
+                }
+            }
+
+            container leafs {
+                help "Configure RADIUS leafs";
+                flag remove-empty;
+                define DDLAID_RADOPTS_LEAFS;
+                leaf nas-ip-address {
+                    help "Value of NAS-IP-Address in outgoing RADIUS packets";
+                    type ipv4addr;
+                }
+            }
+        }
+
+        container tacplus-options {
+            help "TACACS+ options";
+            flag remove-empty;
+            leaf service-name {
+                help "TACACS+ service name";
+                type string;
+            }
+            leaf strict-authorization {
+                help "Deny login if authorization request fails";
+                type empty; 
+                flag allow-no;
+                hidden unreleased;
+            }
+            choice cmd-leaf { 
+                leaf no-cmd-leaf-value { 
+                    help "In start/stop requests, set 'cmd' leaf value "
+                        "to empty string";
+                    type empty;
+                }
+                leaf exclude-cmd-leaf { 
+                    help "In start/stop requests, do not include 'cmd' leaf";
+                    type empty;
+                }
+            }
+
+            /*
+             * Knob to fallback to the old behaviour of setting the
+             * remote-address to the hostname of the router in Tacplus
+             * accounting records, in case if some customer complains
+             * of break in their applications.
+             *
+             * This hidden knob can be deleted down the line (after 9.3 EOL).
+             */
+            leaf hostname-as-remote-address {
+                help "Set remote address attr value to the hostname of router";
+                hidden support;
+                type empty;
+            }
+        }
+
+        container accounting {
+            help "System accounting configuration";
+            product-exclude "qfx3000";
+            flag remove-empty;
+            require admin;
+            notify mgd auditd;
+            action enable-process {
+                process DNAME_AUDITD;
+            }
+        
+            leaf-list events {
+                help "Events to be logged";
+                ordered-by system;
+                mandatory true;
+            
+                type enumeration {
+                    enum login {
+                        help "Login session";
+                        value SYSACCT_LOGIN;
+                    }
+                    enum change-log {
+                        help "Configuration changes";
+                        value SYSACCT_CHANGE;
+                    }
+                    enum interactive-commands {
+                        help "Commands";
+                        value SYSACCT_COMMANDS;
+                    }
+                }
+            }
+
+            container traceoptions {
+                help "Trace options for system accounting";
+                flag remove-empty;
+                require trace;
+                define DDLAID_SYSACCT_TRACEOPTIONS;
+                uses traceoptions-file-without-match;
+
+                list "flag" {
+                    help "Tracing parameters";
+                    flag oneliner;
+                    define DDLAID_SYSACCT_TRACEOPTIONS_FLAG;
+
+                    key flag-name;
+                    leaf flag-name {
+                        type enumeration {
+                            enum "all" {
+                                help "Trace all operations";
+                                define SYSACCT_TRACE_ALL;
+                            }
+                            enum events {
+                                help "Trace accounting events and "
+                                    "their processing";
+                                define SYSACCT_TRACE_EVENTS;
+                            }
+                            enum config {
+                                help "Trace configuration processing";
+                                define SYSACCT_TRACE_CONFIG;
+                            }
+                            enum radius {
+                                help "Trace RADIUS processing";
+                                define SYSACCT_TRACE_RADIUS;
+                            }
+                        }
+                    }
+                }
+            }
+
+            container destination {
+                help "Destination for system accounting records";
+                flag oneliner-plus;
+                mandatory true;
+            
+                container radius {
+                    help "Configure RADIUS accounting";
+                    must ". server || system radius-server" {
+                        message "Configure RADIUS server at "
+                            "[system accounting destination radius server] "
+                            "or [system radius-server]";
+                    }
+
+                    list server {
+                        help "RADIUS accounting server configuration";
+                        uses radius-server-type;
+                    }
+                }
+
+                container tacplus {
+                    help "Send TACACS+ accounting records";
+                
+                    list server {
+                        help "TACACS+ server configuration";
+                        uses tacplus-server-type;
+                    }
+                }
+            }
+        }
+
+        leaf allow-v4mapped-packets {
+            help "Allow processing for packets with V4 mapped address";
+            type empty;
+            option "allow_v4mapped_packets";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf donot-disable-ip6op-ondad {
+            help "Do not disable IP operation on interface, "
+                "if DAD fails on EUI-64 link local address ";
+            type empty;
+            option "donot_disable_ip6op_ondad";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        container scripts {
+            help "Scripting mechanisms";
+            flag remove-empty;
+            require wheel;
+            uses scripts-type;
+        }
+
+        container login {
+            help "Names, login classes, and passwords for users";
+            flag remove-empty;
+            flag allow-struct;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_host_logins_to_group;
+            }
+            action propagate {
+                daemon mgd;
+                function mgd_prop_login_conf;
+            }
+            require admin;
+            cprefix "hc";
+            define DDLAID_LOGIN;
+            notify fsad;
+
+            container announcement {
+                help "System announcement message (displayed after login)";
+                feature-id "sfc-visible";
+                flag prune-unchanged;
+                type string {
+                    range 1 .. 2048;
+                }
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_announcement_message_to_motd;
+                }
+            }
+
+            container message {
+                help "System login message";
+                feature-id "sfc-visible";
+                type string {
+                    range 1 .. 2048;
+                }
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_login_message_to_issue;
+                }
+            }
+
+            container retry-options {
+                help "Configure password retry options";
+                flag remove-empty;
+                define DDLAID_LOGIN_RETRY;
+
+                leaf tries-before-disconnect {
+                    help "Number of times user is allowed to try password";
+                    type uint {
+                        range $LOGIN_RETRIES_MIN .. $LOGIN_RETRIES_MAX;
+                    }
+                    default $LOGIN_RETRIES_DEFAULT;
+                }
+
+                leaf backoff-threshold {
+                    help "Number of password failures before delay "
+                        "is introduced";
+                    type uint {
+                        range $LOGIN_BACKOFF_MIN .. $LOGIN_BACKOFF_MAX;
+                    }
+                    default $LOGIN_BACKOFF_DEFAULT;
+                }
+
+                leaf backoff-factor {
+                    help "Delay factor after 'backoff-threshold' password "
+                        "failures";
+                    type uint {
+                        range $LOGIN_BACKOFF_FACTOR_MIN
+                            .. $LOGIN_BACKOFF_FACTOR_MAX;
+                    }
+                    default $LOGIN_BACKOFF_FACTOR_DEFAULT;
+                }
+
+                leaf minimum-time {
+                    help "Minimum total connection time if all attempts fail";
+                    type uint {
+                        range $LOGIN_MINTIME_MIN .. $LOGIN_MINTIME_MAX;
+                    }
+                    default $LOGIN_MINTIME_DEFAULT;
+                }
+                leaf maximum-time {
+                    help "Maximum time the connection will remain "
+                        "for user to enter username and password"; 
+                    type uint {
+                        range $LOGIN_MAXTIME_MIN .. $LOGIN_MAXTIME_MAX;
+                    }
+                    default $LOGIN_MAXTIME_DEFAULT;
+                }
+
+                leaf lockout-period {
+                    help "Amount of time user account is locked "
+                        "after 'tries-before-disconnect' failures";
+                    type uint {
+                        range $LOGIN_LOCKOUT_MIN .. $LOGIN_LOCKOUT_MAX;
+                    }
+                    units minutes;
+                }
+            }
+
+            leaf prompt {
+                help "Login prompt";
+                feature-id "sfc-visible";
+                hidden unreleased;
+                type string {
+                    range 1..40;
+                }
+                default $LOGIN_DEFAULT_PROMPT;
+            }
+
+            list class {
+                help "Login class";
+                feature-id "sfc-visible";
+                flag remove-empty prune-unchanged;
+                uses login-class-type;
+            }
+
+            list user {
+                help "Username";
+                feature-id "sfc-visible";
+                flag allow-struct;
+                flag remove-empty;
+                uses login-user-type;
+            }
+
+            container password {
+                help "Password configuration";
+                flag remove-empty;
+                feature-id "sfc-visible";
+                notify mgd;
+
+                leaf minimum-length {
+                    help "Minimum password length for all users";
+                    type int {
+                        range 6..20;
+                    }
+                }
+                leaf maximum-length {
+                    help "Maximum password length for all users";
+                    type int {
+                        range 20..128;
+                    }
+                }
+                leaf change-type {
+                    help "Password change type";
+                    type enumeration {
+                        enum character-sets {
+                            help "Count number of character type";
+                        }
+                        enum set-transitions {
+                            help "Count changes in character type";
+                        }
+                    }
+                }
+                leaf minimum-changes {
+                    help "Minimum number of changes in password";
+                    type int;
+                }
+                leaf minimum-numerics {
+                    help "Minimum number of numeric class characters "
+                        "in password";
+                    type int {
+                        range 1 .. 128;
+                    }
+                }
+                leaf minimum-upper-cases {
+                    help "Minimum number of upper-case class characters "
+                        "in password";
+                    type int {
+                        range 1 .. 128;
+                    }
+                }
+                leaf minimum-lower-cases {
+                    help "Minimum number of lower-case class characters "
+                        "in password";
+                    type int {
+                        range 1 .. 128;
+                    }
+                }
+                leaf minimum-punctuations {
+                    help "Minimum number of punctuation class characters "
+                        "in password";
+                    type int {
+                        range 1 .. 128;
+                    }
+                }
+                leaf format {
+                    help "Encryption method to use for password";
+
+                    type enumeration {
+                        enum sha1 {
+                            help "Secure Hash Algorithm 1";
+                        }
+                        enum sha2 {
+                            help "Secure Hash Algorithm 256";
+                            hidden unreleased;
+                        }
+                        enum md5 {
+                            help "Message Digest 5";
+                            flag no-fips;
+                        }
+                        enum des {
+                            help "Digital Encryption Standard";
+                            hidden deprecated;
+                            flag no-fips;
+                        }
+                    }
+                }
+                leaf prompt {
+                    help "Password prompt";
+                    hidden unreleased;
+                    type string {
+                        range 1..40;
+                    }
+                    default $LOGIN_DEFAULT_PASSWD_PROMPT;
+                }
+            }
+            container deny-sources {
+                help "Sources from which logins are denied";
+                flag remove-empty;
+
+                leaf-list address {
+                    help "IPv4/IPv6 addresses, prefix length optional, "
+                        "or hostnames";
+                    type ipprefix-optional;
+                }
+            }
+        }
+
+        list static-host-mapping {
+            help "Static hostname database mapping";
+            require system;
+            flag oneliner-plus homogeneous remove-empty prune-unchanged;
+            flag allow-struct;
+            action propagate {
+                daemon mgd;
+                function mgd_prop_host_mappings_to_various;
+            }
+            cname "host_mapping";
+            cprefix "hm";
+            define DDLAID_STATIC_HOST_MAPPING;
+            notify rpd eventd;
+
+            key host-name;
+            leaf host-name {
+                help "Fully qualified name of system";
+                type string;
+                match "^[[:alnum:]._-]+$" {
+                    message "Must be a string of alphanumericals, "
+                        "dashes or underscores";
+                }
+            }
+
+            leaf-list inet {
+                help "IP address";
+                alias inet4;
+                type ipv4addr;
+                cname host_map_inet;
+            }
+
+            leaf-list inet6 {
+                help "IPv6 address";
+                feature-id "ipv6";
+                type ipv6addr;
+                cname host_map_inet6;
+            }
+
+            leaf sysid {
+                help "ISO/IS-IS system identifier";
+                type sysid;
+                cname host_map_sysid;
+            }
+
+            leaf-list "alias" {
+                help "Hostname alias";
+                type string;
+                cname host_map_alias;
+                match "^[[:alnum:]._-]+$" {
+                    message "Must be a string of alphanumericals, "
+                        "dashes or underscores";
+                }
+            }
+        }
+
+        container services {
+            help "System services";
+            flag no-aid;
+            require system;
+            feature-id "sfc-visible";
+            notify inetd;
+
+            container finger {
+                help "Allow finger requests from remote systems";
+                flag no-fips;
+                call tcp-service($serice = "finger", $user = "nobody",
+                                 $server = "/usr/libexec/fingerd",
+                                 $args = "fingerd -s");
+            }
+
+            container ftp {
+                help "Allow FTP file transfers";
+                flag no-fips;
+                call tcp-and-tcp6-service-rt($service = "ftp", $name = "FTP",
+                                        $server = "/usr/libexec/ftpd"
+                                        $args = "ftpd -l");
+            }
+
+            container rlogin {
+                help "Allow rlogin access from remote systems";
+                hidden unreleased;
+                flag no-fips;
+                call tcp-service-rt($service = "login", $name = "rlogin",
+                                    $instance = "shared",
+                                    $server = "/usr/libexec/rlogind",
+                                    $args = "rlogind");
+            }
+
+            container rsh {
+                help "Allow rsh requests from remote systems";
+                hidden guru;
+                flag no-fips;
+                call tcp-service-rt($service = "shell", $name = "rsh",
+                                    $instance = "shared",
+                                    $server = "/usr/libexec/rshd",
+                                    $args = "rshd");
+            }
+
+            container ssh {
+                help "Allow ssh access";
+                notify ksyncd;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_ssh;
+                }
+                presence "Enable ssh on this device";
+
+                leaf root-login {
+                    help "Configure root access via ssh";
+                    require admin;
+                    option "PermitRootLogin";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_sshd_choice;
+                    }
+                    type enumeration {
+                        enum allow {
+                            help "Allow root access via ssh";
+                            option "yes";
+                        }
+                        enum deny {
+                            help "Do not allow root access via ssh";
+                            option "no";
+                        }
+                        enum deny-password {
+                            help "Allow for non-password-based "
+                                "authentication methods only";
+                            option "without-password";
+                        }
+                    }
+                }
+
+                choice tcp_forwarding_choices {
+                    leaf tcp-forwarding {
+                        help "Allow forwarding TCP connections via SSH";
+                        require admin;
+                        option "AllowTcpForwarding yes";
+                        type empty;
+                        action propagate {
+                            daemon mgd;
+                            function mgd_prop_sshd_option;
+                        }
+                    }
+                    leaf no-tcp-forwarding {
+                        help "Do not allow forwarding TCP connections via SSH";
+                        require admin;
+                        option "AllowTcpForwarding no";
+                        type empty;
+                        action propagate {
+                            daemon mgd;
+                            function mgd_prop_sshd_option;
+                        }
+                    }
+                }
+
+                leaf-list protocol-version {
+                    help "Specify ssh protocol versions supported";
+                    require admin;
+                    flag no-fips;
+                    type enumeration {
+                        enum v1 {
+                            help "Version 1 ssh protocol";
+                            option "1";
+                        }
+                        enum v2 {
+                            help "Version 2 ssh protocol";
+                            option "2";
+                        }
+                    }
+                    option "Protocol";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_ssh_set_of_choice;
+                    }
+                }
+
+                leaf max-sessions-per-connection {
+                    help "Maximum number of sessions per single "
+                        "SSH connection";
+                    require admin;
+                    type int {
+                        range 1 .. 65535;
+                    }
+                }
+
+                leaf-list ciphers {
+                    help "Specify the ciphers allowed for protocol version 2";
+                    require admin;
+                    type enumeration {
+                        enum "3des-cbc" {
+                            help "Tripple DES in CBC mode";
+                        }
+                        enum "aes128-cbc" {
+                            help "128-bit AES with Cipher Block Chaining";
+                        }
+                        enum "aes192-cbc" {
+                            help "192-bit AES with Cipher Block Chaining";
+                        }
+                        enum "aes256-cbc" {
+                            help "256-bit AES with Cipher Block Chaining";
+                        }
+                        enum "aes128-ctr" {
+                            help "128-bit AES with Counter Mode";
+                        }
+                        enum "aes192-ctr" {
+                            help "192-bit AES with Counter Mode";
+                        }
+                        enum "aes256-ctr" {
+                            help "256-bit AES with Counter Mode";
+                        }
+                        enum "arcfour128" {
+                            help "128-bit RC4 with Cipher Block Chaining";
+                        }
+                        enum "arcfour256" {
+                            help "256-bit RC4 with Cipher Block Chaining";
+                        }
+                        enum "arcfour" {
+                            help "128-bit RC4 with Cipher Block Chaining";
+                        }
+                        enum "blowfish-cbc" {
+                            help "128-bit Blowfish with Cipher Block Chaining";
+                        }
+                        enum "cast128-cbc" {
+                            help "128-bit CAST with Cipher Block Chaining";
+                        }
+                    }
+                    option "Ciphers";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_ssh_set_of_strings;
+                    }
+                }
+
+                leaf-list macs {
+                    help "Message Authentication Code algorithms "
+                        "allowed (SSHv2)";
+                    require admin;
+                    type enumeration {
+                        enum "hmac-md5" {
+                            help "Hash-based MAC using Message-Digest 5 (MD5)";
+                        }
+                        enum "hmac-sha1" {
+                            help "Hash-based MAC using Secure Hash "
+                                "Algorithm (SHA1)";
+                        }
+                        enum "umac-64" {
+                            help "Message Authentication Code using "
+                                "Universal Hashing";
+                            option "umac-64@openssh.com";
+                        }
+                        enum "hmac-sha2-256" {
+                            help "Hash-based MAC using Secure Hash "
+                                "Algorithm (SHA2)";
+                        }
+                        enum "hmac-sha2-256-96" {
+                            help "96-bits of Hash-based MAC using SHA2";
+                        }
+                        enum "hmac-sha2-512" {
+                            help "Hash-based MAC using Secure Hash "
+                            "Algorithm (SHA2)";
+                        }
+                        enum "hmac-sha2-512-96" {
+                            help "96-bits of Hash-based MAC using SHA2";
+                        }
+                        enum "hmac-ripemd160" {
+                            help "Hash-based MAC using RIPEMD";
+                        }
+                        enum "hmac-sha1-96" {
+                            help "96-bits of Hash-based MAC using SHA1";
+                        }
+                        enum "hmac-md5-96" {
+                            help "96-bits of Hash-based MAC using MD5";
+                        }
+                    }
+                    option "MACs";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_ssh_set_of_strings;
+                    }
+                }
+
+                leaf-list key-exchange {
+                    help "Specify ssh key-exchange for Diffie-Hellman keys";
+                    require admin;
+                    type enumeration {
+                        enum "ecdh-sha2-nistp256" {
+                            help "The EC Diffie-Hellman on nistp256 "
+                                "with SHA2-256";
+                        }
+                        enum "ecdh-sha2-nistp384" {
+                            help "The EC Diffie-Hellman on nistp384 "
+                                "with SHA2-384";
+                        }
+                        enum "ecdh-sha2-nistp521" {
+                            help "The EC Diffie-Hellman on nistp521 "
+                                "with SHA2-512";
+                        }
+                        enum "group-exchange-sha2" {
+                            help "The RFC 4419 group exchange with "
+                                "SHA2-256 hash";
+                            option "diffie-hellman-group-exchange-sha256";
+                        }
+                        enum "group-exchange-sha1" {
+                            help "The RFC 4419 group exchange with SHA1 hash";
+                            option "diffie-hellman-group-exchange-sha1";
+                        }
+                        enum "dh-group14-sha1" {
+                            help "The RFC 4253 mandated group14 with "
+                                "SHA1 hash";
+                            option "diffie-hellman-group14-sha1";
+                        }
+                        enum "dh-group1-sha1" {
+                            help "The RFC 4253 mandated group1 with SHA1 hash";
+                            option "diffie-hellman-group1-sha1";
+                        }
+                    }
+                    option "DHKeyExchanges";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_ssh_set_of_strings;
+                    }
+                }
+
+                leaf client-alive-count-max {
+                    help "Threshold of missing client-alive responses "
+                        "that triggers a disconnect";
+                    require admin;
+                    type uint {
+                        range 1 .. 255;
+                    }
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_sshd_uint;
+                    }
+                    option "ClientAliveCountMax";
+                }
+
+                leaf client-alive-interval {
+                    help "Frequency of client-alive requests";
+                    require admin;
+                    type uint {
+                        range 0 .. 65535;
+                    }
+                    units seconds;
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_sshd_uint;
+                    }
+                    option "ClientAliveInterval";
+                }
+
+                container hostkey-algorithm {
+                    help "Specify permissible SSH host-key algorithms";
+                    require admin;
+
+                    choice ssh-dss-choice {
+                        help "Generation of 1024-bit DSA host-key";
+
+                        leaf "no-ssh-dss" {
+                            help "Disallow generation of 1024-bit "
+                                "DSA host-key";
+                            type empty;
+                            option "#Hostkeys no-dss";
+                            action propagate {
+                                daemon mgd;
+                                function mgd_prop_sshd_option;
+                            }
+                        }
+
+                        container "ssh-dss" {
+                            help "Allow generation of 1024-bit DSA host-key";
+                            leaf allow-deny {
+                                flag nokeyword;
+                                type enumeration {
+                                    enum allow {
+                                        help "Allow generation of "
+                                            "1024-bit DSA host-key";
+                                        hidden deprecated;
+                                    }
+                                    enum deny {
+                                        help "Disallow generation of "
+                                            "1024-bit DSA host-key";
+                                        option "no-dss";
+                                        hidden deprecated;
+                                    }
+                                }
+                                option "#Hostkeys";
+                                action propagate {
+                                    daemon mgd;
+                                    function mgd_prop_sshd_choice;
+                                }
+                            }
+                        }
+                    }
+
+                    choice ssh-rsa-choice {
+                        help "Generation of RSA host-key";
+
+                        leaf "no-ssh-rsa" {
+                            help "Disallow generation of RSA host-key";
+                            type empty;
+                            option "#Hostkeys no-rsa";
+                            action propagate {
+                                daemon mgd;
+                                function mgd_prop_sshd_option;
+                            }
+                        }
+
+                        container "ssh-rsa" {
+                            help "Allow generation of RSA host-key";
+                            leaf allow-deny {
+                                flag nokeyword;
+                                type enumeration {
+                                    enum allow {
+                                        help "Allow generation of "
+                                            "RSA host-key";
+                                        hidden deprecated;
+                                    }
+                                    enum deny {
+                                        help "Disallow generation of "
+                                            "RSA host-key";
+                                        option "no-rsa";
+                                        hidden deprecated;
+                                    }
+                                }
+                                option "#Hostkeys";
+                                action propagate {
+                                    daemon mgd;
+                                    function mgd_prop_sshd_choice;
+                                }
+                            }
+                        }
+                    }
+
+                    choice ssh-ecdsa-choice {
+                        help "Generation of ECDSA host-key";
+
+                        leaf "no-ssh-ecdsa" {
+                            help "Disallow generation of ECDSA host-key";
+                            type empty;
+                            option "#Hostkeys no-ecdsa";
+                            action propagate {
+                                daemon mgd;
+                                function mgd_prop_sshd_option;
+                            }
+                        }
+
+                        container "ssh-ecdsa" {
+                            help "Allow generation of ECDSA host-key";
+                            leaf allow-deny {
+                                flag nokeyword;
+                                type enumeration {
+                                    enum allow {
+                                        help "Allow generation of "
+                                            "ECDSA host-key";
+                                        hidden deprecated;
+                                    }
+                                    enum deny {
+                                        help "Disallow generation of "
+                                            "ECDSA host-key";
+                                        option "no-ecdsa";
+                                        hidden deprecated;
+                                    }
+                                }
+                                option "#Hostkeys";
+                                action propagate {
+                                    daemon mgd;
+                                    function mgd_prop_sshd_choice;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                leaf privilege-separation {
+                    help "Configure ssh privilege separation";
+                    require admin;
+                    hidden guru;
+                    type enumeration {
+                        enum "enable" {
+                            help "Enable ssh privilege separation";
+                            option "yes";
+                        }
+                        enum "disable" {
+                            help "Disable ssh privilege separation";
+                            option "no";
+                        }
+                        enum "sandbox" {
+                            help "Enable ssh privilege separation with "
+                                "additional security restrictions";
+                            option "sandbox";
+                        }
+                    }
+                    option "UsePrivilegeSeparation";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_sshd_choice;
+                    }
+                }
+
+                call tcp-and-tcp6-service-rt($service = "ssh", $name = "SSH",
+                                     $instance = "shared",
+                                     $service = "/usr/sbin/sshd",
+                                     $args = "sshd -i -f /var/etc/sshd_conf");
+            }
+
+            container telnet {
+                help "Allow telnet login";
+                flag no-fips;
+                call tcp-and-tcp6-service-rt($service = "telnet",
+                                             $instance = "shared",
+                                             $server = "/usr/libexec/telnetd",
+                                             $args = "telnetd");
+            }
+
+            container xnm-clear-text {
+                help "Allow clear text-based JUNOScript connections";
+                flag no-fips;
+                call tcp-and-tcp6-service-rt($service = "xnm-clear-text",
+                                      $name = "clear text-based JUNOScript",
+                                             $instance = "shared",
+                                             $name = "root",
+                                             $server = "/usr/libexec/jade",
+                                             $args = "jade");
+            }
+
+            container xnm-ssl {
+                help "Allow SSL-based JUNOScript connections";
+
+                leaf local-certificate {
+                    type string;
+                    help "Name of local X.509 certificate to use";
+                    call mgd-action-undefined-warning(
+                                       $list = "security certificates local");
+                    mandatory true;
+
+                    must "security certificates local $$" {
+                        message "certificate must be configured "
+                            "under 'security certificates local'";
+                    }
+                }
+
+                call tcp-and-tcp6-service($service = "xnm-ssl",
+                                          $name = "SSL-based JUNOScript",
+                                          $name = "root",
+                                          $server = "/usr/libexec/stunnel",
+                                          $args = "stunnel /etc/stunnel.conf");
+            }
+
+            container netconf {
+                help "Allow NETCONF connections";
+                flag remove-empty;
+
+                container ssh {
+                    help "Allow NETCONF over SSH";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_netconf_over_ssh;
+                    }
+
+                    call tcp-and-tcp6-service($service = "netconf",
+                                          $name = "NETCONF over SSH",
+                                          $server = "/usr/sbin/sshd",
+                             $args = "sshd -i -f /var/etc/sshd_conf "
+                                  "-o SubsystemOnly=netconf -o Protocol=2");
+
+                    leaf port {
+                        type int {
+                            range 1 .. 65535;
+                        }
+                        help "Service port number";
+                    }
+                }
+
+                container traceoptions {
+                    help "NETCONF trace options";
+                    flag remove-empty;
+                    define DDLAID_NETCONF_TRACEOPTIONS;
+
+                    uses traceoptions-file-grouping;
+
+                    list "flag" {
+                        help "Tracing parameters";
+                        flag oneliner;
+
+                        key flag-name;
+                        leaf flag-name {
+                            type enumeration {
+                                enum "all" {
+                                    help "Log the entire communication";
+                                    define NETCONF_TRACE_ALL;
+                                }
+                                enum "incoming" {
+                                    help "Log all incoming data";
+                                    define NETCONF_TRACE_INCOMING;
+                                }
+                                enum "outgoing" {
+                                    help "Log all outgoing data";
+                                    define NETCONF_TRACE_OUTGOING;
+                                }
+                            }
+                        }
+                    }
+
+                    leaf on-demand {
+                        help "Enable on-demand tracing";
+                        type empty;
+                    }
+                }
+            }
+
+            container tftp {
+                help "Allow TFTP file transfers";
+                hidden deprecated;
+                flag no-fips;
+                call udp-service($service = "tftp",
+                                 $server = "/usr/libexec/tftpd",
+                                 $args = "tftpd -i /usr/share/pfe/");
+            }
+
+            container flow-tap-dtcp {
+                help "Configure DTCP-based Flow-tap service";
+                flag remove-empty;
+                require flow-tap;
+                product $PRODUCTS_SUPPORTING_FLOWTAP
+                    $PRODUCTS_SUPPORTING_FTAPLITE;
+
+                container ssh {
+                    help "Allow flow-tap-dtcp service over SSH";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_flow_tap_dtcp_over_ssh;
+                    }
+                    call tcp-and-tcp6-service($service = "flow-tap-dtcp",
+                                              $server = "/usr/sbin/sshd",
+                         $args = "sshd -i -f /var/etc/sshd_conf "
+                           "-o SubsystemOnly=flow-tap-dtcp -o Protocol=2");
+                }
+            }
+            container idp-profiler {
+                help "Configure IDP profiler data export service";
+                hidden unreleased;
+                flag remove-empty;
+                product $J_SERIES_USP;
+
+                container ssh {
+                    help "Allow IDP Profiler service over SSH";
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_idp_profiler_over_ssh;
+                    }
+                }
+            }
+            container reverse {
+                help "Allow connections to device connected to the AUX port";
+                flag remove-empty;
+                product $PRODUCTS_SUPPORTING_REVERSE_TELNET;
+
+                must '(! "system ports auxiliary")' {
+                    message "Cannot have 'system ports auxiliary' "
+                        "configured with reverse telnet/SSH";
+                }
+            
+                container telnet {
+                    help "Allow reverse telnet connections (over AUX port)";
+                    flag no-fips;
+                    call tcp-and-tcp6-service($service = "reverse-telnet",
+                                             $service = "/usr/libexec/telnetd",
+                                             $args = "telnetd -r",
+                                             $hide = "internal");
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_reverse;
+                    }
+
+                    leaf port {
+                        help "Port number to accept reverse "
+                            "telnet connections";
+                        type int {
+                            range 1 .. 65535;
+                        }
+                        default 2900;
+                    }
+                }
+                container ssh {
+                    help "Allow reverse SSH connections (over AUX port)";
+                    flag no-fips;
+                    call tcp-and-tcp6-service($service = "reverse-ssh",
+                                              $service = "/usr/sbin/sshd",
+                                              $args = "sshd -i "
+                                     "-o ForceCommand=/usr/libexec/interposer "
+                                              "-f /dev/null",
+                                              $hide = "internal");
+                    action propagate {
+                        daemon mgd;
+                        function mgd_prop_reverse;
+                    }
+
+                    leaf port {
+                        help "Port number to accept reverse SSH connections";
+                        type int {
+                            range 1 .. 65535;
+                        }
+                        default 2901;
+                    }
+                }
+            }
+
+            container dns {
+                help "Enable Name server";
+                product $USP_PLATFORMS;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_dns_server;
+                }
+                action enable-process {
+                    process named;
+                }
+                notify named;
+                define DDLAID_NAMED;
+ 
+                leaf max-cache-ttl {
+                    help "Max TTL for cached responses";
+                    type uint {
+                        range 0 .. 604800;
+                    }
+                    default 604800;
+                    units seconds;
+                }
+ 
+                leaf max-ncache-ttl {
+                    help "Max TTL for cached negative responses";
+                    type uint {
+                        range 0 .. 604800;
+                    }
+                    default 10800;
+                    units seconds;
+                }
+ 
+                container traceoptions {
+                    help "DNS server trace options";
+                    define NAMED_TRACEOPTIONS;
+                    flag remove-empty;
+
+                    uses traceoptions-file-without-match;
+
+                    leaf "debug-level" {
+                        help "Debug level";
+                        type uint {
+                            range 0 .. 99;
+                        }
+                        default 0;
+                    }
+
+                    list "category" {
+                        help "Logging category";
+                        flag oneliner;
+                        ordered-by system;
+
+                        key category-name;
+                        leaf category-name {
+                            type enumeration {
+                                enum "default" {
+                                    help "Categories where no "
+                                        "specific configuration";
+                                }
+                                enum "general" {
+                                    help "General infomation";
+                                }
+                                enum "database" {
+                                    help "Messages relating to the databases";
+                                }
+                                enum "security" {
+                                    help "Approval and denial of requests";
+                                }
+                                enum "config" {
+                                    help "Configuraion file parsing and "
+                                        "processing";
+                                }
+                                enum "resolver" {
+                                    help "DNS resolution";
+                                }
+                                enum "xfer-in" {
+                                    help "Zone transfers the server is "
+                                        "receiving";
+                                }
+                                enum "xfer-out" {
+                                    help "Zone transfers the server "
+                                        "is sending";
+                                }
+                                enum "notify" {
+                                    help "The NOTIFY protocol";
+                                }
+                                enum "client" {
+                                    help "Processing of client requests";
+                                }
+                                enum "unmatched" {
+                                    help "Messages named was unable "
+                                        "to determine the class";
+                                }
+                                enum "network" {
+                                    help "Network options";
+                                }
+                                enum "update" {
+                                    help "Dynamic updates";
+                                }
+                                enum "update-security" {
+                                    help "Approval and denial of "
+                                        "update requests";
+                                }
+                                enum "queries" {
+                                    help "DNS query";
+                                }
+                                enum "dispatch" {
+                                    help "Dispatching of incoming packets "
+                                        "to the server";
+                                }
+                                enum "dnssec" {
+                                    help "DNSSEC and TSIG protocol processing";
+                                }
+                                enum "lame-servers" {
+                                    help "Lame servers";
+                                }
+                                enum "delegation-only" {
+                                    help "Delegation only";
+                                }
+                                enum "edns-disabled" {
+                                    help "Log query using plain DNS";
+                                }
+                            }
+                        }
+                    }
+                }
+
+                list forwarders {
+                    help "Server IPs to DNS query will be forwarded";
+                    flag homogeneous;
+
+                    key forwarder;
+                    leaf forwarder {
+                        help "IP address";
+                        type ipaddr;
+                    }
+                }
+
+                container dnssec {
+                    help "Configure DNSSEC";
+                    presence "Enable DNSSEC";
+
+                    leaf disable {
+                        help "Disable DNSSEC";
+                        type empty;
+                    }
+
+                    container trusted-keys {
+                        help "Trusted keys";
+                        define DDLAID_DNSSEC_TRUSTED_KEYS;
+                        list key {
+                            help "Trusted key";
+                            define DDLAID_DNSSEC_TRUSTED_KEY;
+                            key dns-key;
+                            leaf dns-key {
+                                flag long secret;
+                                type string;
+                                help "Trusted key";
+                            }
+                        }
+                        leaf load-key-file {
+                            help "File (URL) containing one or more DNSKEY keys";
+                            type string;
+                            action assign {
+                                daemon mgd;
+                                function mgd_assign_dnssec_keyfile;
+                            }
+                            action expand {
+                                daemon mgd;
+                                function mgd_expand_user_file;
+                            }
+                            hidden from-xml;
+                        }
+                    }
+
+                    list dlv {
+                        help "Configure DLV (DNS Lookaside Validation)";
+                        flag oneliner homogeneous allow-struct;
+                        cname ddc_dlv;
+                        key domain trusted-anchor;
+                        leaf domain {
+                            help "Name of the domain";
+                            type string;
+                        }
+                        leaf trusted-anchor {
+                            help "Trusted DLV anchor";
+                            type string;
+                        }
+                    }
+
+                    list secure-domains {
+                        help "Domains for which only signed responses "
+                            "are accepted";
+                        flag homogeneous;
+                        key domain-name;
+                        leaf domain-name {
+                            help "Domain name";
+                            type string;
+                        }
+                    }
+                }
+            }
+        }
+
+        container syslog {
+            help "System logging facility";
+            feature-id "sfc-visible";
+            require system;
+            notify eventd;
+            flag remove-empty;
+            flag allow-struct;
+            define DDLAID_SL;
+            cname ddl_syslog;
+            cprefix sl;
+
+            action propagate {
+                daemon mgd;
+                function mgd_prop_syslog;
+            }
+
+            leaf archive {
+                help "Archive file information";
+                flag master-only;
+                uses archive-type;
+            }
+
+            list user {
+                help "Notify a user of the event";
+                flag allow-struct;
+                flag remove-empty;
+                define DDLAID_SLUSER;
+                cprefix sl;
+
+                key user-name;
+                leaf user-name {
+                    help "Name of user to notify";
+                    type string;
+                    match "^([[:alnum:]_-]+|[*])$" {
+                        message "Must be a string of alphanumericals, "
+                            "dashes or underscores";
+                    }
+                }
+
+                list contents {
+                    flag nokeyword homogeneous oneliner remove-empty;
+                    uses syslog-type;
+                }
+
+                leaf "match" {
+                    help "Regular expression for lines to be logged";
+                    type regular-expression;
+                }
+
+                leaf allow-duplicates {
+                    help "Do not suppress the repeated message";
+                    type empty;
+                    flag unicast-only;
+                }
+            }
+
+            list host {
+                help "Host to be notified";
+                flag remove-empty;
+                flag allow-struct;
+                define DDLAID_SLHOST;
+                cprefix sl;
+                key host-name;
+
+                leaf host-name {
+                    help "Name of host to notify";
+
+                    /*
+                     * For backward compatibility, don't make syslog
+                     * server-name an leaf of type 'hostname' (RLI
+                     * 3456). But notify 'hostname-cached' about config
+                     * change here, so that 'hostname-cached' will sighup
+                     * eventd (syslogd) when there is a change in
+                     * name-to-address mapping.
+                     */
+                    notify hostname-cached;
+
+                    type enumeration {
+                        enum other-routing-engine {
+                            help "Send to log file on other Routing Engine";
+                        }
+                        enum scc-master {
+                            product tx4 t640;
+                            action acceptable {
+                                daemon mgd;
+                                function mgd_is_hobson;
+                            }
+                            help "Send to log file on SCC master";
+                        }
+                        enum sfc0-master {
+                            product txp;
+                            help "Send to log file on SFC master";
+                        }
+                        enum log-host-name {
+                            flag nokeyword text-choice; 
+                            help "Host to be notified";
+                            match "^[[:alnum:]._-]+$" {
+                                message "Must be a string of alphanumericals, "
+                                    "dashes or underscores";
+                            }
+                        }
+                    }
+                }
+
+                list contents {
+                    flag nokeyword homogeneous oneliner remove-empty;
+                    uses syslog-type;
+                }
+
+                leaf "match" {
+                    help "Regular expression for lines to be logged";
+                    type regular-expression;
+                }
+
+                leaf allow-duplicates {
+                    help "Do not suppress the repeated message";
+                    type empty;
+                    flag unicast-only;
+                }
+
+                leaf port {
+                    help "Port number";
+                    type ushort;
+                }
+
+                uses facility-override-leaf;
+
+                leaf log-prefix {
+                    help "Prefix for all logging to this host";
+                    type string;
+                    match "![ =:]" {
+                        message "Should not contain '=' or ':'";
+                    }
+                }
+
+                leaf source-address {
+                    type ipaddr;
+                    help "Use specified address as source address";
+                    flag unicast-only;
+                }
+
+                leaf explicit-priority {
+                    help "Include priority and facility in messages";
+                    type empty;
+                    cname sl_expri_host;
+                }
+
+                uses structured-format;
+            }
+
+            leaf allow-duplicates {
+                help "Do not suppress the repeated message for all targets";
+                type empty;
+                flag unicast-only;
+            }
+
+            list file {
+                help "File in which to log data";
+                flag remove-empty;
+                flag allow-struct;
+                define DDLAID_SLFILE;
+                cprefix sl;
+
+                key file-name;
+                leaf file-name {
+                    help "Name of file in which to log data";
+                    type string {
+                        range 1 .. $DDL_MAXPATHLEN;
+                    }
+                    uses filename-check;
+                }
+
+                list contents {
+                    flag nokeyword homogeneous oneliner remove-empty;
+                    uses syslog-type;
+                }
+
+                leaf "match" {
+                    help "Regular expression for lines to be logged";
+                    type regular-expression;
+                }
+
+                leaf allow-duplicates {
+                    help "Do not suppress the repeated message";
+                    type empty;
+                    flag unicast-only;
+                }
+
+                container archive {
+                    help "Archive file information";
+                    uses archive-type;
+                }
+            
+                leaf explicit-priority {
+                    help "Include priority and facility in messages";
+                    type empty;
+                    cname sl_expri_file;
+                    must "!.. structured-data" {
+                        message "'explicit-priority' cannot be "
+                            "configured if 'structured-data' is configured";
+                    }
+                }
+
+                uses structured-format;
+            }
+
+            list console {
+                help "Console logging";
+                flag homogeneous oneliner remove-empty;
+                ordered-by system;
+                flag allow-struct;
+                flag master-only;
+                define DDLAID_SLCONS;
+                cprefix sl;
+
+                uses system-facility-leaf;
+                uses level-leaf;
+            }
+
+            container time-format {
+                help "Additional information to include in "
+                    "system log timestamp";
+                cprefix sl;
+                cname time_format;
+                define DDLAID_SLTIME;
+                flag oneliner;
+                flag allow-struct;
+                flag master-only;
+
+                leaf year {
+                    help "Include year in timestamp";
+                    type empty;
+                }
+
+                leaf millisecond {
+                    help "Include milliseconds in timestamp";
+                    type empty;
+                }
+            }
+
+            leaf source-address {
+                help "Use specified address as source address"
+                type ipaddr;
+                flag unicast-only;
+            }
+
+            leaf log-rotate-frequency {
+                help "Rotate log frequency";
+                type uint {
+                    range 1 .. 59;
+                }
+                units minutes;
+                default 15;
+            }
+
+            leaf max-open-fds {
+                help "Number of syslog files remain open";
+                flag master-only;
+                hidden internal;
+                type uint {
+                    range 1 .. $MAX_OPEN_FDS;
+                }
+                default $DEFAULT_OPEN_FDS;
+            }
+        }
+
+        container tracing {
+            help "System wide option for remote tracing";
+            flag oneliner remove-empty;
+            notify chassisd ksyncd spd eventd cosd irsd kmd
+                authd cfmd lfmd pmond sdxd autoconfd httpd-gk auditd ssd 
+                datapath-traced;
+         
+            container destination-override {
+                help "Override tracing destination";
+                flag oneliner remove-empty;
+
+                container syslog {
+                    help "Send trace messages to remote syslog server";
+                    flag oneliner remove-empty;
+
+                    leaf host {
+                        help "IPv4 address of remote syslog server";
+                        mandatory true;
+                        type ipv4addr;
+                    }
+                }
+            }
+        }
+
+        leaf encrypt-configuration-files {
+            help "Encrypt the router configuration files";
+            require system;
+            product $J_SERIES;
+            type empty;
+            notify mgd;
+
+            action propagate {
+                daemon mgd;
+                function mgd_prop_jcrypt;
+            }
+        }
+
+        leaf compress-configuration-files {
+            help "Compress the router configuration files";
+            require system;
+            type empty;
+            flag allow-no;
+            notify mgd;
+        }
+
+        leaf max-configurations-on-flash {
+            help "Number of configuration files stored on flash";
+            require system;
+            type uint {
+                range 0 .. 49;
+            }
+            default $NUM_OLD_DB_FILES_IN_CONFIG;
+            notify mgd;
+        }
+
+        leaf max-configuration-rollbacks {
+            help "Number of rollback configuration files";
+            require system;
+            type uint {
+                range 0 .. 49;
+            }
+            default $NUM_OLD_DB_FILES;
+            product $FX_SERIES_DCF;
+            notify mgd;
+        }
+
+        container archival {
+            help "System archival management";
+            flag remove-empty;
+            require system;
+            notify pfed;
+
+            container configuration {
+                help "Automatic configuration uploads to host(s)";
+                flag remove-empty;
+                define DDLAID_AC;
+
+                choice transfer-method {
+                    mandatory true;
+
+                    leaf transfer-interval {
+                        help "Frequency at which file transfer happens";
+                        type uint {
+                            range 15 .. 2880;
+                        }
+                        units minutes;
+                    }
+    
+                    leaf transfer-on-commit {
+                        help "Transfer after each commit";
+                        type empty;
+                        notify mgd;
+                    }
+                }
+
+                list archive-sites {
+                    help "List of archive destinations";
+                    flag homogeneous oneliner;
+                    mandatory true;
+
+                    key url;
+                    leaf url {
+                        help "URLs to receive configuration files";
+                        type string;
+                        action assign {
+                            daemon mgd;
+                            function mgd_assign_prepare_url;
+                        }
+                    }
+
+                    leaf password {
+                        help "Password for login into the archive site";
+                        flag secret;
+                        type unreadable;
+                    }
+                }
+            }
+        }
+
+        container extensions {
+            help "Configuration for extensions to JUNOS";
+            require admin;
+            notify mgd;
+
+            list providers {
+                flag oneliner-plus homogeneous;
+                define DDLAID_EXTENSIONS_PROVIDERS;
+
+                key provider-id;
+                leaf provider-id {
+                    type string;
+                    match "^[a-z][a-z0-9]*$" {
+                        message "Must be a string of alphanumericals "
+                            "starting with a letter";
+                    }
+                }
+
+                list license-type {
+                    flag remove-empty oneliner;
+                    define DDLAID_EXTENSIONS_PROVIDERS_LICENSE_TYPE;
+
+                    key "license";
+                    leaf "license" {
+                        help "Type of the license";
+                        type string;
+                        match "^[a-z][a-z0-9]*$" {
+                            message "Must be a string of alphanumericals "
+                                "starting with a letter";
+                        }
+                    }
+                
+                    list deployment-scope {
+                        flag oneset;
+                        define "DDLAID_EXTENSIONS_PROVIDERS_LICENSE_"
+                            "TYPE_DEPLOYMENT_SCOPE";
+
+                        key deployment;
+                        leaf deployment {
+                            help "Scope of deployment of the license";
+                            type string;
+                            match "^[a-z][a-z0-9]*$" {
+                                message "Must be a string of alphanumericals "
+                                    "starting with a letter";
+                            }
+                        }
+                    }
+                }
+                action enable-process {
+                    process DNAME_SSD DNAME_PMOND DNAME_RES_CLEANUPD 
+                        DNAME_DATAPATH_TRACED;
+                }
+            }
+        }
+
+        container "license" {
+            help "License information for the router";
+            feature-id "sfc-visible";
+            uses license-type;
+            flag remove-empty;
+            require system;
+            notify mgd license-check;
+        }
+    
+        container "proxy" {
+            help "Proxy information for the router";
+            uses proxy-type;
+            flag remove-empty;
+            require system;
+            notify license-check;
+        }
+
+        /*
+         * The knob below is a hack to satisfy Korea Telecom's requirement.
+         * It should be deprecated once the UI generic warning generator
+         * becomes available.
+         */
+        list warn {
+            help "Warning message management";
+            hidden unreleased;
+            notify mgd;
+            type enumeration {
+                enum bgp-policy {
+                    help "Generate warning for policies that contain "
+                        "'from protocol bgp' statement";
+                    value $SYSWARN_BGP_POLICY;
+                }
+            }
+        }
+
+        container commit {
+            help "Configuration commit management";
+            flag no-aid;
+            notify mgd;
+            flag remove-empty oneliner-plus;
+            leaf fast-synchronize {
+                help "Parallelized commit synchronizing "
+                    "multiple routing-engines";
+                hidden guru;
+                feature-id "commit-fast-synchronize";
+                action acceptable {
+                    daemon mgd;
+                    function mgd_is_multi_re;
+                }
+                action acceptable {
+                    daemon mgd;
+                    function mgd_is_single_chassis;
+                }
+                type empty;
+            }
+            leaf synchronize {
+                help "Synchronize commit on both Routing Engines by default";
+                action acceptable {
+                    daemon mgd;
+                    function mgd_is_multi_re;
+                }
+                type empty;
+            }
+            container factory-settings {
+                help "Actions to take when factory settings are committed";
+                hidden internal;
+            }
+
+            container server {
+                help "Commit server (batch commit)";
+                flag remove-empty;
+
+                leaf maximum-aggregate-pool {
+                    help "Maximum number of transactions to aggregate";
+                    type uint {
+                        range 1 .. max;
+                    }
+                }
+
+                leaf maximum-entries {
+                    help "Maximum number of transactions allowed in queue";
+                    type uint;
+                }
+
+                leaf asynchronous-prompt {
+                    help "Prompt returns immediately";
+                    type empty;
+                    hidden unreleased; 
+                }
+
+                leaf commit-interval {
+                    help "Number of seconds between commits";
+                    type uint;
+                }
+
+                leaf days-to-keep-error-logs {
+                    help "Number of day to keep error log entries";
+                    type uint {
+                        range 1 .. $MAX_DAYS_ERROR_LOG;
+                    }
+                }
+
+                container traceoptions {
+                    help "Trace options for commit server";
+                    flag remove-empty;
+
+                    uses traceoptions-file-without-match;
+                    uses traceoptions-file-microseconds;
+
+                    list "flag" {
+                        help "Tracing parameters";
+                        flag oneliner;
+                        ordered-by system;
+
+                        key flag-name;
+                        leaf flag-name {
+                            type enumeration {
+                                enum "all" {
+                                    help "Trace all operations";
+                                    define CBSD_TRACE_ALL;
+                                }
+                                enum "commit-server" {
+                                    help "Trace commit server";
+                                    define CBSD_COMMIT_SERVER;
+                                }
+                                enum "batch" {
+                                    help "Trace file batching";
+                                    define CBSD_BATCH;
+                                }
+                                enum "configuration" {
+                                    help "Reading of configuration";
+                                    define CBSD_CONFIG;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            leaf flatten-groups {
+                help "Flatten groups to foreground configuration "
+                    "instead of expansion";
+                hidden guru;
+                type empty;
+            }
+        }
+
+        container fips {
+            help "FIPS configuration";
+            flag remove-empty;
+            leaf level {
+                require wheel;
+                help "FIPS 140 level";
+                type int {
+                    range 0 .. 4;
+                }
+                default 0;
+                notify mgd;
+                action propagate {
+                    daemon mgd;
+                    function mgd_prop_fips_msg_to_motd;
+                }
+            }
+
+            container self-test {
+                help "Configure FIPS self-test execution";
+                action acceptable {
+                    daemon mgd;
+                    function mgd_is_fips;
+                }
+                action propagate {
+                    daemon mgd;
+                    function mgd_fips_periodic_selftest;
+                }
+                flag remove-empty strict-order;
+
+                leaf after-key-generation {
+                    help "FIPS self-test after cryptographic key generation";
+                    option "KeyGenSelftest";
+                    notify pkid;
+                    hidden deprecated;
+                    type enumeration {
+                        enum enable {
+                            help "Enable FIPS self-test after "
+                                "cryptographic key generation";
+                            option "yes";
+                        }
+                        enum disable {
+                            help "Disable FIPS self-test after "
+                                "cryptographic key generation";
+                            option "no";
+                        }
+                    }
+                }
+                container periodic {
+                    help "Configure periodic FIPS self-test";
+                    flag remove-empty strict-order;
+                    leaf start-time {
+                        help "Time when the periodic FIPS self-tests are "
+                            "to be executed (hh:mm)";
+                        type string;
+                        match "^(([0-1]?[0-9])|([2][0-3])):([0-5]?[0-9])$" {
+                            message "Time must be of the format hh:mm";
+                        }
+                    }
+                    leaf day-of-month {
+                        help "Day of the month when FIPS self-tests are "
+                            "to be executed";
+                        type int {
+                            range 1 .. 31;
+                        }
+                        must ".. start-time" {
+                            message "\'start-time\' for FIPS self-test "
+                                "execution must be configured";
+                        }
+                    }
+                    leaf month {
+                        help "The month when FIPS self-tests are "
+                            "to be executed";
+                        type int {
+                            range 1 .. 12;
+                        }
+                        must ".. start-time" {
+                            message "\'start-time\' for FIPS self-test "
+                                "execution must be configured";
+                        }
+                    }
+                    leaf day-of-week {
+                        help "Day of the week when the FIPS self-tests are "
+                            "to be executed (where 1 - Monday, 7 - Sunday)"; 
+                        type int {
+                            range 1 .. 7;
+                        }
+                        must ".. start-time" {
+                            message "\'start-time\' for FIPS self-test "
+                                "execution must be configured";
+                        }
+                    }
+                }
+            }
+        }
+        /*
+         * In DC-SI system a lot of individual switches, we call them
+         * TORs, are integrated together through a central switching
+         * fabric to form a single logical switch called a VDCF. The
+         * VDCF as a whole is managed from outside through a
+         * management IP address called lf0 IP. This is the IP address
+         * through which a customer can connect to the system from
+         * outside and manage through the VDCF. This IP address is
+         * required to be learnt by all the TORs in the system for
+         * various applications.  As of now, while writing this
+         * comment(07-Oct-2011) Sflow is the only application which
+         * would use this IP to put it as a source IP address for the
+         * sflow datagrams generated by the individual TORs. This ddl
+         * file is thus modified to take care of this approach so the
+         * all the intereseted applications on DC-SI platform be thus
+         * notified of this information.
+         */
+        leaf logical-fabric-ip {
+            help "VDCF management IP Address ";
+            type ipv4addr;
+            hidden internal;
+            notify sflowd;
+        }
+    }
+
+    grouping nameserver-type {
+        flag oneliner homogeneous;
+        flag allow-struct;
+        cprefix "hns";
+        define DDLAID_HNS;
+        action propagate {
+            daemon mgd;
+            function mgd_prop_name_servers_to_rc;
+        }
+
+        key address;
+        leaf address {
+            help "DNS name server address";
+            type ipaddr;
+        }
+    }
+
+    grouping radius-server-type {
+        feature-id "sfc-visible";
+        flag oneliner-plus homogeneous;
+        flag allow-struct;
+        cname radius_server;
+        define DDLAID_RAD;
+        cprefix rad;
+        action propagate {
+            daemon mgd;
+            function mgd_prop_radius_servers;
+        }
+
+        uses radius-target-hostname;
+        uses radius-target-ports;
+        uses radius-common-leafs;
+        call radius-source-address;
+    }
+
+    grouping dynamic-profile-option-type {
+        leaf versioning {
+            help "Enable dynamic profile versioning";
+            mandatory true;
+            type empty;
+        }
+    }
+
+    grouping tacplus-server-type {
+        feature-id "sfc-visible";
+        flag oneliner-plus homogeneous;
+        flag allow-struct;
+        cname tacplus_server;
+        define DDLAID_TAC;
+        cprefix tac;
+
+        key address;
+        leaf address {
+            help "TACACS+ authentication server address";
+            type ipv4addr;
+        }
+
+        leaf port {
+            help "TACACS+ authentication server port number";
+            type ushort;
+        }
+
+        leaf secret {
+            help "Shared secret with the authentication server";
+            type unreadable;
+            flag secret;
+            require secret;
+        }
+
+        leaf timeout {
+            help "Request timeout period";
+            type uint {
+                range 1 .. 90;
+            }
+            default 3;
+            units seconds;
+        }
+
+        leaf single-connection {
+            help "Optimize TCP connection attempts";
+            product-exclude qfx3000;
+            type empty;
+        }
+
+        leaf source-address {
+            help "Use specified address as source address";
+            type ipv4addr;
+            flag unicast-only;
+        }
+    }
+
+    grouping login-class-perm-type {
+        flag no-apply;
+        feature-id "sfc-visible";
+
+        key perm;
+        leaf perm {
+            flag no-apply;
+            type string;
+            action validate {
+                daemon mgd;
+                function mgd_validate_require;
+            }
+            action expand {
+                daemon mgd;
+                function mgd_expand_require;
+            }
+        }
+    }
+
+    grouping login-class-type {
+        feature-id "sfc-visible";
+        require admin;
+        ordered-by system;
+        cname ddc_class;
+        cprefix dc;
+        define DDLAID_DC;
+        action parse {
+            daemon mgd;
+            function mgd_parse_login_class_container;
+        }
+
+        key class-name;
+        leaf class-name {
+            help "Login class name";
+            type string;
+            cname dc_identifier;
+            match "^[[:alnum:]_-]+$" {
+                message "Must be a string of alphanumericals, "
+                    "dashes or underscores";
+            }
+            action validate {
+                daemon mgd;
+                function mgd_validate_login_class_name;
+            }
+        }
+
+        leaf-list allow-sources {
+            help "Restrict incoming remote access to hosts";
+            hidden unreleased;
+            type ipv4addr;
+            match "![ =:]" {
+                message "Should not conatin '=' or colon";
+            }
+        }
+
+        leaf-list deny-sources {
+            help "Never allow remote access from hosts";
+            hidden unreleased;
+            type ipv4addr;
+            match "![ =:]" {
+                message "Should not conatin '=' or colon";
+            }
+        }
+
+        leaf-list allowed-days {
+            help "Day(s) of week when access is allowed.";
+            flag strict-order;
+            type enumeration {
+                enum "sunday" {
+                    help "Sunday";
+                }
+                enum "monday" {
+                    help "Monday";
+                }
+                enum "tuesday" {
+                    help "Tuesday";
+                }
+                enum "wednesday" {
+                    help "Wednesday";
+                }
+                enum "thursday" {
+                    help "Thursday";
+                }
+                enum "friday" {
+                    help "Friday";
+                }
+                enum "saturday" {
+                    help "Saturday";
+                }
+            }
+        }
+        leaf access-start {
+            help "Start time for remote access (hh:mm)";
+            type time;
+            flag time-only;
+            must ".. access-end" {
+                message "access-end time must be configured";
+            }
+            must "! .. access-end $$" {
+                message "Both access-start and access-end cannot "
+                    "hold the same time values";
+            }
+        }
+
+        leaf access-end {
+            help "End time for remote access (hh:mm)";
+            type time;
+            flag time-only;
+            must ".. access-start" {
+                message "access-start time must be configured";
+            }
+        }
+
+        leaf-list allow-times {
+            help "Restrict remote access to times";
+            hidden unreleased;
+            type string;
+            match "![ =:]" {
+                message "Should not conatin '=' or colon";
+            }
+        }
+
+        leaf-list deny-times {
+            help "Never allow remote access during times";
+            hidden unreleased;
+            type string;
+            match "![ =:]" {
+                message "Should not conatin '=' or colon";
+            }
+        }
+
+        leaf idle-timeout {
+            help "Maximum idle time before logout";
+            type uint;
+            units minutes;
+        }
+
+        leaf logical-system {
+            help "Logical system associated with login";
+            alias logical-router;
+            path-reference "logical-systems";
+            type string;
+            must "logical-systems $$" {
+                message "Referenced logical system must be configured";
+            }
+            feature-id "logical-router";
+        }
+
+        leaf login-alarms {
+            help "Display system alarms when logging in";
+            type empty;
+        }
+
+        leaf login-script {
+            help "Execute this login-script when logging in";
+            type string;
+            must "system scripts op file $$" {
+                message "Login script must be configured as op-script";
+            }
+        }
+    
+        leaf login-tip {
+            help "Display tip when logging in";
+            type empty;
+        }
+
+        list permissions {
+            help "Set of permitted operation categories";
+            flag oneset no-apply;
+            ordered-by system;
+            uses login-class-perm-type;
+        }
+
+        leaf allow-commands {
+            help "Regular expression for commands to allow explicitly";
+            type regular-expression;
+            match "!:" {
+                message "Expression should not contain colon";
+            }
+        }
+
+        leaf deny-commands {
+            help "Regular expression for commands to deny explicitly";
+            type regular-expression;
+            match "!:" {
+                message "Expression should not contain colon";
+            }
+        }
+
+        leaf allow-configuration {
+            help "Regular expression for configure to allow explicitly";
+            type regular-expression;
+            match "!:" {
+                message "Expression should not contain colon";
+            }
+            must '! ".. allow-configuration-regexps"'
+                '&& ! ".. deny-configuration-regexps"' {
+                message "'*-configuration' and '*-configuration-regexps' "
+                    "are mutually exclusive";
+            }
+        }
+
+        leaf deny-configuration {
+            help "Regular expression for configure to deny explicitly";
+            type regular-expression;
+            match "!:" {
+                message "Expression should not contain colon";
+            }
+            must '(! ".. allow-configuration-regexps" '
+                '&& ! ".. deny-configuration-regexps")' {
+                message "'*-configuration' and '*-configuration-regexps' "
+                    "are mutually exclusive";
+            }
+        }
+    
+        leaf security-role {
+            help "Common Criteria security role";
+            type enumeration {
+                enum audit-administrator {
+                    help "Audit administrator";
+                }
+                enum crypto-administrator {
+                    help "Cryptographic administrator";
+                }
+                enum ids-administrator {
+                    help "IDS administrator";
+                }
+                enum security-administrator {
+                    help "Security administrator";
+                }
+            }
+        }
+
+        leaf-list allow-configuration-regexps {
+            help "Container path regular expressions to allow";
+            flag oneset;
+            must '(! ".. allow-configuration" && ! ".. deny-configuration")' {
+                message "'*-configuration' and '*-configuration-regexps' "
+                    "are mutually exclusive";
+            key regexp-string;
+            leaf regexp-string {
+                type string;
+                action validate {
+                    daemon mgd;
+                    function mgd_validate_extended_regex;
+                }
+            }
+        }
+        leaf-list deny-configuration-regexps {
+            help "Container path regular expressions to deny";
+            flag oneset;
+            must '(! ".. allow-configuration" && ! ".. deny-configuration")' {
+                message "'*-configuration' and '*-configuration-regexps' "
+                    "are mutually exclusive";
+            }
+
+            key regexp-string;
+            leaf regexp-string {
+                type string;
+                action validate {
+                    daemon mgd;
+                    function mgd_validate_extended_regex;
+                }
+            }
+        }
+
+        leaf configuration-breadcrumbs {
+            type empty;
+            help "Enable breadcrumbs during display of configuration";
+        }
+    }
+
+    grouping login-user-type {
+        feature-id "sfc-visible";
+        ordered-by system;
+        require admin;
+        cname ddc_user;
+        cprefix du;
+        define DDLAID_USER;
+        action propagate {
+            daemon mgd;
+            function mgd_prop_users_to_passwd;
+        }
+
+        key user-name;
+        leaf user-name {
+            help "User name (login)";
+            type string;
+            cname du_identifier;
+            uses user-login-name-check;
+            action acceptable {
+                daemon mgd;
+                function mgd_validate_user_name;
+            }
+        }
+
+        leaf full-name {
+            help "Full name";
+            flag helpful;
+            type string;
+            match "![:\\n]" {
+                message "Field cannot contain colons or new lines";
+            }
+        }
+
+        leaf uid {
+            help "User identifier (uid)";
+            product-exclude qfx3000;
+            type uint {
+                range 100 .. 64000;
+            }
+        }
+
+        leaf class {
+            help "Login class";
+            mandatory true;
+            type string;
+            match "^[[:alnum:]_-]+$" {
+                message "Must be a string of alphanumericals, "
+                    "dashes or underscores";
+            }
+            uses mgd-action-expand-classes;
+            uses mgd-action-undefined-class-warning;
+        }
+
+        leaf shell {
+            help "Initial shell";
+            hidden unreleased;
+            type enumeration {
+                enum tcsh {
+                    hidden deprecated; /* We're not shipping tcsh */
+                    help "C shell with filename completion";
+                    value $CLI_SHELL_TCSH;
+                }
+                enum csh {
+                    help "C shell";
+                    value $CLI_SHELL_CSH;
+                }
+                enum sh {
+                    help "Bourne-style shell (really ash)";
+                    value $CLI_SHELL_SH;
+                }
+            }
+        }
+
+        leaf authentication {
+            help "Authentication method";
+            uses authentication-type;
+            flag remove-empty;
+        }
+    }
+
+    grouping authentication-type {
+        help "Authentication method";
+        flag allow-struct secret remove-empty;
+        feature-id "sfc-visible";
+        cname user_auth;
+        cprefix ua;
+        define DDLAID_AUTH;
+
+        action propagate {
+            daemon mgd;
+            function mgd_prop_root_to_passwd;
+        }
+
+        leaf plain-text-password {
+            help "Prompt for plain text password (autoencrypted)";
+            hidden from-xml;
+            type empty;
+            action assign {
+                daemon mgd;
+                function mgd_assign_unix_plain_passwd;
+            }
+        }
+
+        leaf plain-text-password-value {
+            help "Plain text password";
+            hidden from-cli;
+            type string;
+            flag secret;
+
+            action assign {
+                daemon mgd;
+                function mgd_assign_unix_plain_passwd_value;
+            }
+        }
+
+        leaf encrypted-password {
+            uses encrypted-password-type;
+            action mandatory {
+                daemon mgd;
+                code "return mgd_is_unattended(daap) != ACCEPTABLE_OK "
+                            "&& mgd_is_parent_root_authentication(daap) "
+                                                       "== ACCEPTABLE_OK";
+            }
+        }
+
+        list ssh-rsa {
+            help "Secure shell (ssh) RSA public key string";
+            flag oneliner;
+            cname user_ssh_key;
+            cprefix ssh;
+            define DDLAID_AUTH_SSH_RSA;
+
+            key authorized-key;
+            leaf authorized-key {
+                help "Secure shell (ssh) RSA public key string";
+                flag long secret;
+                type string;
+                match "^([[:digit:]]+[[:space:]]+[[:digit:]]+[[:space:]]+"
+                    "[[:digit:]]+|ssh-rsa[[:space:]]+[[:print:]]+)"
+                    "([[:space:]]+.*){0,1}$" {
+                    message "Must follow SSHv2 or SSHv1 RSA key format";
+                }
+            }
+
+            uses ssh-from-type;
+        }
+
+        list ssh-dsa {
+            help "Secure shell (ssh) DSA public key string";
+            flag oneliner;
+            cname user_ssh_dsa_key;
+            cprefix ssh;
+            define DDLAID_AUTH_SSH_DSA;
+
+            key authorized-key;
+            leaf authorized-key {
+                help "Secure shell (ssh) DSA public key string";
+                flag long secret;
+                type string;
+                match "^ssh-dss[[:space:]]+[[:print:]]+"
+                    "([[:space:]]+.*){0,1}$" {
+                    message "Key format must be 'ssh-dss "
+                        "<base64-encoded-DSA-key> <comment>'";
+                }
+            }
+
+            uses ssh-from-type;
+        }
+
+        leaf load-key-file {
+            help "File (URL) containing one or more ssh keys";
+            type string;
+
+            action assign {
+                daemon mgd;
+                function mgd_assign_ssh_key_file;
+            }
+            action expand {
+                daemon mgd;
+                function mgd_expand_user_file;
+            }
+            hidden from-xml;
+        }
+    }
+
+    grouping syslog-type {
+        flag homogeneous nokeyword oneliner;
+        ordered-by system;
+        feature-id "sfc-visible";
+        cname syslog_faclev;
+        flag allow-struct;
+        cprefix sf;
+        define DDLAID_SLFNL;
+        uses system-facility-leaf;
+        uses level-leaf;
+    }
+
+    grouping archive-type {
+        flag oneliner;
+        flag allow-struct;
+        cname syslog_archive;
+        cprefix sa;
+        define DDLAID_SLARC;
+
+        leaf size {
+            help "Size of files to be archived";
+            type uint {
+                range 64k .. 1g;
+            }
+            flag kilo;
+            product-exclude "qfx3000";
+            units bytes;
+        }
+
+        leaf files {
+            help "Number of files to be archived";
+            type uint {
+                range 1 .. 1000;
+            }
+            flag kilo;
+            product-exclude "qfx3000";
+        }
+
+        leaf world-readable {
+            help "Allow any user to read the log file";
+            type empty;
+            flag allow-no;
+        }
+
+        leaf binary-data {
+            help "Mark file as if it contains binary data";
+            type empty;
+            flag allow-no;
+        }
+
+        leaf dont-compress {
+            help "Don't compress archived files";
+            hidden guru;
+            type empty;
+        }
+
+        leaf transfer-interval {
+            help "Frequency at which to transfer files to archive sites";
+            uses only-for-archive-files;
+            type uint {
+                range 5 .. 2880;
+            }
+            units minutes;
+            must '(".. archive-sites")' {
+                message "'archive-sites' must also be configured";
+            }
+        }
+    
+        leaf start-time {
+            help "Start time for file transmission (yyyy-mm-dd.hh:mm)";
+            uses only-for-archive-files;
+            type time;
+            must '(".. archive-sites")' {
+                message "'archive-sites' must also be configured";
+            }
+        }
+
+        list archive-sites {
+            uses only-for-archive-files;
+            cname syslog_archive_sites;
+            cprefix sas;
+            flag homogeneous oneliner;
+            flag allow-struct;
+        
+            key url;
+            leaf url {
+                help "Primary and failover URLs to receive archive files";
+                type string;
+                action assign {
+                    daemon mgd;
+                    function mgd_assign_prepare_url;
+                }
+            }
+
+            leaf password {
+                help "Password for login into the archive site";
+                flag secret;
+                type unreadable;
+            }
+        }
+    }
+
+    grouping tty-port-type {
+        help "RS-232 configuration";
+        flag oneliner-plus;
+        flag allow-struct;
+        cname tty_port;
+        cprefix tp;
+        define DDLAID_TP;
+
+        leaf log-out-on-disconnect {
+            help "Log out the console session when cable is unplugged";
+            require system;
+            type empty;
+            option "logoff_console_on_disconnect";
+            action acceptable {
+                daemon mgd;
+                function "return (ddl_path_match_exclude(daap, "
+                    "\"*system ports console\"))";
+            }
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+        }
+
+        leaf port-type {
+            help "Switch console between RJ45 and mini-USB";
+            require system;
+            product $EX2200_C_12X $JAVA_KONA;
+            type enumeration {
+                enum "rj45" {
+                    help "Enable RJ45";
+                }
+
+                enum "mini-usb" {
+                    help "Enable mini-USB";
+                }
+            }
+            action propagate {
+                daemon mgd;
+                functoin mgd_prop_port_type;
+            }
+        }
+
+        leaf disable {
+            help "Disable console";
+            type empty;
+        }
+
+        leaf insecure {
+            help "Disallow superuser access";
+            type empty;
+        }
+
+        leaf speed {
+            help "Speed of the port";
+            units baud;
+            hidden deprecated;
+            type enumeration {
+                enum 1200 {
+                    help "Standard terminal at 1200 baud";
+                    hidden deprecated;
+                }
+                enum 2400 {
+                    help "Standard terminal at 2400 baud";
+                    hidden deprecated;
+                }
+                enum 4800 {
+                    help "Standard terminal at 4800 baud";
+                }
+                enum 9600 {
+                    help "Standard terminal at 9600 baud";
+                }
+                enum 19200 {
+                    help "Standard terminal at 19200 baud";
+                }
+                enum 38400 {
+                    help "Standard terminal at 38400 baud";
+                }
+                enum 57600 {
+                    help "Standard terminal at 57600 baud";
+                }
+                enum 115200 {
+                    help "Standard terminal at 115200 baud";
+                }
+            }
+        }
+
+        leaf "type" {
+            help "Terminal type";
+            type enumeration {
+                enum ansi {
+                    help "ANSI-compatible terminal";
+                }
+                enum vt100 {
+                    help "VT100-compatible terminal";
+                }
+                enum pc {
+                    help "PC screen";
+                    hidden guru;
+                    option "cons25";
+                }
+                enum small-xterm {
+                    help "Small (24-line) xterm window";
+                    option "xterms";
+                }
+                enum xterm {
+                    help "Large (65-line) xterm window";
+                }
+            }
+        }
+
+        leaf exact-type {
+            help "Exact terminal type";
+            type string;
+            hidden guru;
+        }
+    }
+
+    grouping script-traceoptions {
+        uses traceoptions-file-without-match;
+        call traceoptions-file-microseconds($hide = "internal");
+
+        list "flag" {
+            help "Tracing parameters";
+            flag oneliner;
+            ordered-by system;
+
+            key flag-name;
+            leaf flag-name {
+                type enumeration {
+                    enum "all" {
+                        help "Trace all operations";
+                    }
+                    enum arguments {
+                        help "Trace program argument values";
+                        hidden support;
+                    }
+                    enum debug {
+                        help "Trace debug events";
+                        hidden support;
+                    }
+                    enum events {
+                        help "Trace important events";
+                    }
+                    enum input {
+                        help "Trace script input data";
+                    }
+                    enum offline {
+                        help "Generate data for offline development";
+                    }
+                    enum output {
+                        help "Trace script output data";
+                    }
+                    enum rpc {
+                        help "Trace script RPCs";
+                    }
+                    enum xslt {
+                        help "Trace the XSLT library";
+                    }
+                    enum rusage {
+                        hidden guru;
+                        help "Trace resource usage";
+                    }
+                }
+            }
+        }
+    }
+
+    grouping scripts-type {
+        container commit {
+            help "Commit-time scripting mechanism";
+            flag remove-empty;
+            require wheel;
+
+            leaf allow-transients {
+                help "Allow loading of transient configuration changes";
+                type empty;
+            }
+
+            container traceoptions {
+                help "Trace options for commit scripts";
+                flag remove-empty;
+                uses script-traceoptions;
+            }
+
+            leaf refresh {
+                help "Refresh all commit scripts from their source";
+                type empty;
+                action assign {
+                    daemon mgd;
+                    function cs_refresh_commit;
+                }
+            }
+
+            leaf refresh-from {
+                help "Refresh all commit scripts from a given base URL";
+                type string;
+                action assign {
+                    daemon mgd;
+                    function cs_refresh_commit;
+                }
+            }
+
+            leaf-list filter {
+                help "Limit the amount of configuration processed by scripts";
+                type string;
+                hidden unreleased;
+                match "! " {
+                    message "top-level statements only";
+                }
+            }
+
+            leaf max-datasize {
+                help "Maximum data segment size for scripts execution";
+                type uint {
+                    range 22m .. 1024m;
+                }
+                units bytes;
+                flag kilo;
+                default 128m;
+            }
+
+            leaf direct-access {
+                help "Access the configuration directly from database";
+                type empty;
+            }
+
+            list file {
+                help "Commit script file";
+                uses commit-scripts-file-type;
+            }
+        }
+
+        container op {
+            help "Operations scripting";
+            require wheel;
+            flag remove-empty;
+
+            container traceoptions {
+                help "Trace options for operation scripts";
+                uses script-traceoptions;
+                flag remove-empty;
+            }
+
+            list file {
+                help "Configuration for each operation script";
+                uses op-scripts-file-type;
+            }
+
+            leaf refresh {
+                help "Refresh all operation scripts from their source";
+                type empty;
+                action assign {
+                    daemon mgd;
+                    function cs_refresh_op;
+                }
+            }
+
+            leaf refresh-from {
+                help "Refresh all operation scripts from a given base URL";
+                type string;
+                action assign {
+                    daemon mgd;
+                    function cs_refresh_op;
+                }
+            }
+
+            leaf no-allow-url {
+                help "Do not allow the remote execution of op scripts";
+                type empty;
+            }
+        
+            leaf max-datasize {
+                help "Maximum data segment size for scripts execution";
+                type uint {
+                    range 22m .. 1024m;
+                }
+                units bytes;
+                flag kilo;
+                default 128m;
+            }
+        }
+
+        leaf load-scripts-from-flash {
+            help "Load scripts from flash";
+            type empty;
+            option "load_scripts_from_flash";
+            action propagate {
+                daemon mgd;
+                function mgd_prop_value_to_rc;
+            }
+            action assign {
+                daemon mgd;
+                function load_scripts_from_flash;
+            }
+        }
+    }
+
+    grouping commit-scripts-file-type {
+        key file-name;
+        leaf file-name {
+            help "Local filename of the script file";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            match "!/" {
+                message "File name cannot contain a '/'";
+            }
+        }
+
+        leaf optional {
+            help "Allow commit to succeed if the script is missing";
+            type empty;
+        }
+
+        leaf strict {
+            help "Apply script only during a 'commit strict' operation";
+            hidden unreleased;
+            type empty;
+        }
+
+        leaf source {
+            help "URL of source for this script";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+        }
+
+        leaf refresh {
+            help "Refresh this script from its source";
+            type empty;
+            action assign {
+                daemon mgd;
+                function cs_refresh_commit;
+            }
+        }
+
+        leaf refresh-from {
+            help "Refresh this script from a given URL";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            action assign {
+                daemon mgd;
+                function cs_refresh_commit;
+            }
+        }
+
+        uses scripts-checksum;
+    }
+
+    grouping op-scripts-file-type {
+        ordered-by system;
+
+        key "name";
+        leaf "name" {
+            help "Local filename of the script file";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            match "!/" {
+                message "file name cannot contain a '/'";
+            }
+        }
+
+        leaf "command" {
+            help "Command alias for the script file";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            match "!/" {
+                message "command name cannot contain a '/'";
+            }
+        }
+
+        leaf "description" {
+            help "Description of the script";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            flag helpful;
+        }
+
+        leaf source {
+            help "URL of source for this script";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+        }
+
+        leaf refresh {
+            help "Refresh this script from its source";
+            type empty;
+            action assign {
+                daemon mgd;
+                function cs_refresh_op;
+            }
+        }
+
+        leaf refresh-from {
+            help "Refresh this script from a given URL";
+            type string {
+                range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+            }
+            action assign {
+                daemon mgd;
+                function cs_refresh_op;
+            }
+        }
+
+        list "arguments" {
+            help "Command line argument to the script";
+            flag homogeneous;
+            ordered-by system;
+
+            key "name";
+            leaf "name" {
+                help "Name of the argument";
+                type string {
+                    range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+                }
+            }
+
+            leaf "description" {
+                help "Description of the argument";
+                flag helpful;
+                type string {
+                    range 1 .. $MAX_SIMPLE_STRING_LENGTH;
+                }
+            }
+        }
+
+        uses scripts-checksum;
+    }
+
+    grouping license-type {
+        require system;
+        feature-id "sfc-visible";
+        help "License configuration for this router";
+        define DDLAID_LICENSE;
+
+        container autoupdate {
+            help "Autoupdate license keys from license servers";
+     
+            list url {
+                help "URL of a license server";
+                define DDLAID_LICENSE_URL;
+                flag oneliner;
+                max-elements $MAX_LICENSE_SERVERS;  
+        
+                key url;
+                leaf url {
+                    help "URL of a license server for license keys";
+                    type string;   
+                }
+
+                leaf password {
+                    help "Password of URL for a license server";
+                    type string;
+                    flag secret;
+                }
+            }
+        }
+
+        container renew {
+            help "License renew lead time and checking interval";
+            define DDLAID_LICENSE_RENEW;
+            flag oneliner;
+
+            leaf before-expiration {
+                help "License renew lead time before expiration in days";
+                type uint {
+                    range $MIN_RENEW_BEFORE_EXPIRATION .. 
+                        $MAX_RENEW_BEFORE_EXPIRATION;
+                mandatory true;
+            }
+
+            leaf interval {
+                help "License checking interval in hours";
+                type uint {
+                    range $MIN_RENEW_INTERVAL .. $MAX_RENEW_INTERVAL;
+                }
+                mandatory true;
+            }
+        }
+        container traceoptions {
+            help "Trace options for licenses";
+            flag remove-empty;
+            require trace;
+            define DDLAID_LICENSE_TRACEOPTIONS;
+
+            TRACEOPTIONS_FILE;
+
+            list "flag" {
+                help "Tracing parameters";
+                flag oneliner;
+                define DDLAID_LICENSE_TRACEOPTIONS_FLAG;
+
+                key flag-name;
+                leaf flag-name {
+                    type enumeration {
+                        enum "all" {
+                            help "Trace all operations";
+                            define LICENSE_TRACE_ALL;
+                        }
+                        enum events {
+                            help "Trace licensing events and their processing";
+                            define LICENSE_TRACE_EVENTS;
+                        }
+                        enum config {
+                            help "Trace license configuration processing";
+                            define LICENSE_TRACE_CONFIG;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    grouping proxy-type {
+        help "License download proxy server.";
+        leaf server {
+            help "URL or IP address of the proxy server host";
+            type string {
+                range 1..256;
+            }
+            mandatory true;
+        }
+
+        leaf port {
+            help "Proxy server port";
+            type ushort {
+                range 0..65535;
+            }
+            default 3128;
+        }
+
+        leaf username {
+            help "Username as configured in the proxy server";
+            type string {
+                range 1..256;
+            }
+            uses user-login-name-check;
+        }
+
+        leaf password {
+            help "Password as configured in the proxy server";
+            type unreadable;
+            flag secret;
+            match "^.{1,32}$" {
+                message "Password consists of up to 32 characters";
+            }
+            must ".. username" {
+                message "User name should be set";
+            }
+        }
+    }
+
+    grouping encrypted-password-type {
+        help "Encrypted password string";
+        type string {
+            range 1 .. $MAX_ENCRYPTED_PASSWD_SIZE;
+        }
+        flag secret;
+    }
+
+    grouping only-for-archive-files {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "system syslog file*"))
+                    return ACCEPTABLE_OK;
+                else
+                    return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+    }
+
+    grouping arp-interface-type {
+        flag nokeyword delta-list;
+        ordered-by system;
+        help "Logical interface on which to configure ARP aging timer";
+
+        key interface-name;
+
+        leaf interface_name {
+            type interface-name;
+            interface-acceptable ic-ethernet;
+            help "Interface name";
+            jmust "interfaces $$-IFL family inet" {
+                message "Family inet must be configured "
+                    "on this logical interface";
+            }
+        }
+        leaf aging-timer {
+            mandatory true;
+            help "Change the ARP aging time value";
+            type uint {
+                range "1 .. 240";
+            }
+            units minutes;
+        }
+    }
+
+    grouping location-type {
+        feature-id "sfc-visible";
+
+        leaf country-code {
+            help "Two-letter country code";
+            type string; 
+        }
+        leaf postal-code {
+            help "Zip code or postal code";
+            type string;
+        }
+        leaf npa-nxx {
+            help "First six digits of phone number (area code plus exchange)";
+            type string;
+        }
+        leaf latitude {
+            help "Latitude in degree format";
+            type string;
+        }
+        leaf longitude {
+            help "Longitude in degree format";
+            type string;
+        }
+        leaf altitude {
+            help "Feet above (or below) sea level";
+            type int; 
+        }
+        leaf lata {
+            help "Long-distance service area";
+            type string;
+        }
+        leaf vcoord {
+            help "Bellcore vertical coordinate";
+            type string;
+        }
+        leaf hcoord {
+            help "Bellcore horizontal coordinate";
+            type string;
+        }
+        leaf building {
+            help "Building name";
+            type string;
+        }
+
+        leaf floor {
+            help "Floor of the building";
+            type int;
+        }
+
+        leaf rack {
+            help "Rack number";
+            type uint;
+        }
+
+        /*
+         * lcc locations are valid only on hobson platform.
+         */
+        list lcc {
+            flag remove-empty;
+            help "Line-card chassis location";
+            action acceptable {
+                daemon mgd;
+                function mgd_is_hobson;
+            }
+
+            key lcc-number;
+            leaf lcc-number {
+                help "LCC number";
+                type uint {
+                    range 0 .. $MCHASSIS_UI_MAX_LCC_SLOT;
+                }
+            }
+
+            leaf floor {
+                help "Floor of the building";
+                type int;
+            }
+
+            leaf rack {
+                help "Rack number";
+                type uint;
+            }
+        }
+    }
+}
