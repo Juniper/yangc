@@ -1,0 +1,78 @@
+module foo {
+    // This is a comment
+    /* This is a comment also */
+    namespace "http://foo.example.net" {
+        prefix foo;
+    }
+    contact "Phil Shafer";
+
+    param $MIN = 12;
+    param $MAX = 100;
+    param $test-default = 42;
+    param $test = "not(foo)";
+    param $this = "one";
+    param $that = "two";
+
+    include base-02;
+
+    template foo ($a, $b, $c) {
+    	leaf foo-is-working {
+            if ($c > 1) {
+                help $b;
+            }
+        }
+    }
+
+    augment protocols {
+        call foo($a = "foo-data", $b = "Foo Data", $c = 2);
+
+	container one {
+	    must not(../two == $MAX);
+	    must $test;
+	    must $this==$that;
+	    help "This is" + " a help string";
+	    config true;
+	}
+
+        leaf test {
+            help "test" + "ing";
+	    must "test" + "ing";
+            type int {
+                range $MIN .. $MAX;
+            }
+            default $test-default;
+            must . < $MAX;
+        }
+    }
+
+    container examples-from-spec {
+	leaf host-name {
+	    type string;
+	    description "Hostname for this system";
+	}
+
+	
+	container system {
+	    container login {
+		leaf message {
+		    type string;
+		    description 
+			"Message given at start of login session";
+		}
+
+		list user {
+		    key "name";
+		    leaf name {
+			type string;
+		    }
+		    leaf full-name {
+			type string;
+		    }
+		    leaf class {
+			type string;
+		    }
+		}
+	    }
+	}
+    }
+}
