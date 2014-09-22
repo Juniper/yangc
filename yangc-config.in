@@ -1,0 +1,112 @@
+#! /bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+
+usage()
+{
+    cat <<EOF
+Usage: yangc-config [OPTION]
+
+Known values for OPTION are:
+
+  --prefix=DIR		change yangc prefix [default $prefix]
+  --exec-prefix=DIR	change yangc exec prefix [default $exec_prefix]
+  --libs		print library linking information
+  --cflags		print pre-processor and compiler flags
+  --yang-dir            print YANG_DIR
+  --modules		module support enabled
+  --help		display this help and exit
+  --version		output version information
+EOF
+
+    exit $1
+}
+
+if test $# -eq 0; then
+    usage 1
+fi
+
+cflags=false
+libs=false
+
+while test $# -gt 0; do
+    case "$1" in
+    -*=*) optarg=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+    *) optarg= ;;
+    esac
+
+    case "$1" in
+    --prefix=*)
+	prefix=$optarg
+	includedir=$prefix/include
+	libdir=$prefix/lib
+	;;
+
+    --prefix)
+	echo $prefix
+	;;
+
+    --exec-prefix=*)
+      exec_prefix=$optarg
+      libdir=$exec_prefix/lib
+      ;;
+
+    --yangc-dir)
+        echo @YANGC_DIR@
+        exit 0
+        ;;
+
+    --exec-prefix)
+      echo $exec_prefix
+      ;;
+
+    --version)
+	echo @VERSION@
+	exit 0
+	;;
+
+    --help)
+	usage 0
+	;;
+
+    --cflags)
+       	echo @YANGC_INCLUDEDIR@ @YANGC_CFLAGS@
+       	;;
+
+    --libtool-libs)
+	if [ -r ${libdir}/@YANGC_LIBTOOLLIBS@ ]
+	then
+	    echo ${libdir}/@YANGC_LIBTOOLLIBS@
+	fi
+        ;;
+
+    --modules)
+       	echo @WITH_MODULES@
+       	;;
+
+    --libs)
+        if [ "`uname`" = "Linux" ]
+	then
+	    if [ "@YANGC_LIBDIR@" = "-L/usr/lib" -o "@YANGC_LIBDIR@" = "-L/usr/lib64" ]
+	    then
+		echo @YANGC_LIBS@ 
+	    else
+		echo @YANGC_LIBDIR@ @YANGC_LIBS@ 
+	    fi
+	else
+	    echo @YANGC_LIBDIR@ @YANGC_LIBS@ @WIN32_EXTRA_LIBADD@
+	fi
+       	;;
+
+    *)
+	usage
+	exit 1
+	;;
+    esac
+    shift
+done
+
+exit 0
