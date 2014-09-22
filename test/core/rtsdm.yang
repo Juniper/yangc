@@ -1,0 +1,147 @@
+submodule rtsdm {
+    /*
+     * Copyright (c) 2010, 2014, Juniper Networks, Inc.
+     * All rights reserved.
+     */
+
+    augment /system {
+        container shm-rtsdbd {
+            hidden support;
+            notify shm-rtsdbd;
+
+            container traceoptions {
+                help "SHM rtsock database server trace options";
+                require trace;
+                flag remove-empty;
+                define DDLAID_SHM_RTSDBD_TRACEOPTIONS;
+
+                uses traceoptions-file;
+                uses traceoptions-level-leaf;
+
+                list "flag" {
+                    help "Tracing parameters";
+                    alias traceflag;
+                    flag oneliner;
+
+                    key flag-name;
+                    leaf flag-name {
+                        type enumeration {
+                            enum routing-socket {
+                                help "Trace routing-socket events";
+                                define SHM_RTSDBD_TRACEFLAG_RTSOCK;
+                            }
+                            enum process {
+                                help "Trace process internals";
+                                define SHM_RTSDBD_TRACEFLAG_PROCESS;
+                            }
+                            enum startup {
+                                help "Trace startup events/flow";
+                                define SHM_RTSDBD_TRACEFLAG_STARTUP;
+                            }
+                            enum general {
+                                help "Trace general flow";
+                                define SHM_RTSDBD_TRACEFLAG_GENERAL;
+                            }
+                            enum restart {
+                                help "Trace process restart flow";
+                                define SHM_RTSDBD_TRACEFLAG_RESTART;
+                            }
+                            enum if-rtsdb {
+                                    help "Trace interface hierarchy rtsdb";
+                                    define SHM_RTSDBD_TRACEFLAG_IF_RTSDB;
+                                }
+                            enum "all" {
+                                help "Trace everything";
+                                define SHM_RTSDBD_TRACEFLAG_ALL;
+                            }
+                        }
+                    }
+                    leaf disable {
+                        help "Disable this trace flag";
+                        type empty;
+                    }
+                }
+            }
+
+            container rtsdb-server-traceoptions {
+                help "SHM rtsock database server library trace options";
+                container if-rtsdb {
+                    help "Trace interface hierarchy rtsdb";
+                    list "flag" {
+                        alias traceflag;
+                        flag oneliner;
+                        help "Tracing parameters";
+
+                        key flag_name;
+                        leaf flag_name {
+                            type enumeration {
+                                enum "init" {
+				    help "Trace initialization";
+				}
+				choice "routing-socket" {
+				    help "Trace routing socket messages";
+				}
+				enum "state-entry" {
+				    help "Trace routing socket messages state";
+				}
+				enum "map" {
+				    help "Trace shared memory mapping";
+				}
+				enum "update-group" {
+				    help "Trace update group events";
+				}
+				enum "user" {
+				    help "Trace user events";
+				}
+				enum "all" {
+				    help "Trace all";
+				}
+			    }
+			}
+			leaf disable {
+			    help "Disable this trace flag";
+			    type toggle;
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    template rtsdb-client-trace-options (dbname, helpstr) {
+	container rtsdb-client-traceoptions {
+	    help "SHM rtsock database client library trace options";
+	    container $dbname {
+		help $helpstr;
+		list "flag" {
+		    alias traceflag;
+		    flag oneliner;
+		    help "Tracing parameters";
+
+		    key flag_name;
+		    leaf flag_name {
+			type enumeration {
+			    enum "init" {
+				help "Trace initialization";
+			    }
+			    enum "routing-socket" {
+				help "Trace routing socket messages";
+			    }
+			    enum "map" {
+				help "Trace shared memory mapping";
+			    }
+			    enum "all" {
+				help "Trace all";
+			    }
+			}
+		    }
+		    leaf disable {
+			help "Disable this trace flag";
+			type toggle;
+		    }
+		}
+            }
+        }
+    }
+}
+
