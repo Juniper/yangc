@@ -1,0 +1,51 @@
+Name:        @PACKAGE_NAME@
+Version:     @PACKAGE_VERSION@
+Release:     1%{?dist}
+Summary:     YANG Compiler
+
+Prefix:      /usr
+
+Vendor:      Juniper Networks, Inc.
+Packager:    Phil Shafer <phil@juniper.net>
+License:     BSD
+
+Group:       Development/Libraries
+URL:         https://github.com/Juniper/libslax
+Source0:     https://github.com/Juniper/@PACKAGE_NAME@/releases/@PACKAGE_VERSION@/@PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz
+
+BuildRequires:  libxml2-devel
+BuildRequires:  libxslt-devel
+BuildRequires:  libedit-devel
+BuildRequires:  libslax
+BuildRequires:  bison-devel
+BuildRequires:  bison
+
+%description
+Welcome to yangc, the YANG compiler.
+
+%prep
+%setup -q
+
+%build
+%configure
+make %{?_smp_mflags}
+
+%install
+rm -rf $RPM_BUILD_ROOT
+%make_install
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post -p /sbin/ldconfig
+
+%files
+%{_bindir}/*
+%{_libdir}/*
+%{_libdir}/pkgconfig/yangc.pc
+%{_libdir}/lib*
+%{_datadir}/doc/yangc/*
+%{_libexecdir}/yangc/*
+%{_datadir}/yangc/import/*
+%{_mandir}/*/*
+%docdir %{_mandir}/*/*
