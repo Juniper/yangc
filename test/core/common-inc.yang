@@ -1,0 +1,726 @@
+/*
+ * Copyright (c) 1998-2008,2014, Juniper Networks, Inc.
+ * All rights reserved.
+ */
+
+submodbule common-inc {
+    param $ddl_maxpathlen = 1024;
+    param $MCHASSIS_UI_MAX_LCC_SLOT = 3;
+    param $MCHASSIS_UI_MAX_VC_MEMBER_ID = 10;
+
+    param $MAX_UINT = 4294967295;
+    param $MAX_INT = 2147483647;
+
+    param $PID_MAX = 99999;
+
+    param $GB_MAC_TABLE_LIMIT_MIN = 20;
+    param $GB_MAC_TABLE_LIMIT_MAX = 1048575;
+
+    param $MAX_SIMPLE_STRING_LENGTH = 254;
+
+    /*
+     * Minimum IPv6 PMTU discovery timeout in minutes, as
+     * mandated in RFC 1981 (Path MTU Discovery for IP version 6)
+     */ 
+    param $MIN_IPV6_PMTU_TIMEOUT = 5;
+
+    /*
+     * Maximum IPv6 PMTU discovery timeout in minutes.
+     * This is equivalent to maximum time in minutes that can
+     * be represented by 4294967295 (MAX_UINT) seconds
+     * This is around 136 years, good enough to cover expected lifetime
+     * of a router.
+     */
+    param $MAX_IPV6_PMTU_TIMEOUT = 71582788;
+
+    typedef percent {
+	type uint {
+	    range 0 .. 100;
+	}
+    }
+
+    /*
+     * VLAN Range string format.
+     */
+    grouping vlan-range-format-check {
+	match "^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])"
+	    "\-([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))$" {
+	    -message "Must be a string in the format <1-4094>-<1-4094>";
+	}
+    }
+
+    /*
+     * VLAN Tag format.
+     */
+    grouping vlan-tag-format-check {
+	match "^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))$" {
+	    message "VLAN ID has to be an integer between 1 and 4094";
+	}
+    }
+
+    /*
+     * VLAN Name string format.
+     */
+    grouping vlan-name-format-check {
+	match  "^[[:alpha:]][[:alnum:]_.-]+$" {
+	    message "Must be a string of length atleast 2 beginning "
+		"with a letter and consisting of letters, numbers, "
+		"periods, dashes, and underscores";
+	}
+    }
+
+    /* 
+     * Regular expression for specifying VLAN Range or VLAN Tag
+     */
+    grouping vlan-range-or-tag-format-check {
+	match "^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))"
+	    "$|^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])"
+	    "\-([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))$" {
+	    message "Must be a valid VLAN range string or VLAN tag";
+	}
+    }
+
+    /*
+     * Regular expression for specifying VLAN Name or VLAN Tag
+     */
+    grouging vlan-name-or-tag-format-check {
+	match "^([[:alpha:]][[:alnum:]_.-]+)|^([1-9][0-9]{0,2}"
+	    "|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])$" {
+	    message "Must be a valid VLAN name or VLAN tag";
+	}
+    }
+
+    /*
+     * Regular expression for specifying VLAN Name or VLAN Tag or
+     * VLAN Range string
+     */
+    grouping vlan-reference-string-format-check {
+	match "(^([[:alpha:]][[:alnum:]_.-]+)$)"
+	    "|(^([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])$)"
+	    "|(^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])"
+	    "\-([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))$)" {
+	    message "Must be a  valid VLAN name, VLAN tag or "
+		"VLAN range string";
+	}
+    }
+
+    /*
+     * L2 circuit range for virtual circuit identifier.
+     */
+    param $L2CKT_VC_ID_MIN = 1;
+    param $L2CKT_VC_ID_MAX = 0xffffffff;
+
+    /*
+     * L2 circuit range for switchover delay to backup 
+     */
+    param $L2CKT_SWITCH_DELAY_MIN = 0;
+    param $L2CKT_SWITCH_DELAY_MAX = 180000;
+
+    /*
+     * Min-max range for configured MTU.
+     */
+    param $L2CKT_INTF_MTU_MIN = 512;
+    param $L2CKT_INTF_MTU_MAX = 65535;
+
+    /*
+     * L2 circuit revertive timer delay range (in secs)
+     */
+    param $L2CKT_REVERT_TIME_MIN = 0;
+    param $L2CKT_REVERT_TIME_MAX = 600;
+
+    /*
+     * Min-max range for incoming static labels
+     */
+    param $L2CKT_STATIC_IN_LABEL_MIN = 1000000;
+    param $L2CKT_STATIC_IN_LABEL_MAX = 1048575;
+
+    /*
+     * Min-max range for outgoing static labels
+     */
+    param $L2CKT_STATIC_OUT_LABEL_MIN = 16;
+    param $L2CKT_STATIC_OUT_LABEL_MAX = 1048575;
+
+
+    template enab-disab-leaf ($parameter, $help) {
+	leaf enab_disab {
+	    help $help;
+	    xml-name enable-disable;
+	    flag nokeyword;
+	    default enable;
+	    type enumeration {
+		enum enable {
+		    hidden default;
+		    value TRUE;
+		    help "Enable parameter";
+		}
+		enum disable {
+		    value FALSE;
+		    help "Disable parameter";
+		}
+	    }
+	}
+    }
+
+    template conditional-enab-disab-leaf ($parameter, $condition) {
+	leaf enab_disab {
+	    xml-name enable-disable;
+	    flag nokeyword;
+	    default enable;
+	    type enumeration {
+		enum enable {
+		    hidden default;
+		    if ($condition) {
+			copy-of $condition;
+		    }
+		    value TRUE;
+		    help "Enable parameter";
+		}
+		choice disable {
+		    if ($condition) {
+			copy-of $condition;
+		    }
+		    value FALSE;
+		    help "Disable parameter";
+		}
+	    }
+	}
+    }
+
+    template nodefault-enab-disab-leaf ($parameter) {
+	leaf enab_disab {
+	    xml-name enable-disable;
+	    flag nokeyword;
+	    type enumeration {
+		enum enable {
+		    hidden unconditional;
+		    value TRUE;
+		    help "Enable " _ $parameter;
+		}
+		enum disable {
+		    value FALSE;
+		    help "Disable " _ $parameter;
+		}
+	    }
+	}
+    }
+
+    template mandatory-enab-disab-leaf ($parameter) {
+	leaf enab_disab {
+	    xml-name enable-disable;
+	    flag nokeyword mandatory;
+	    type enumeration {
+		enum enable {
+		    value TRUE;
+		    help "Enable " _ $parameter;
+		}
+		enum disable {
+		    value FALSE;
+		    help "Disable "_ $parameter;
+		}
+	    }
+	}
+    }
+
+    template hidden-enab-disab-leaf ($parameter) {
+	leaf enab_disab {
+	    xml-name enable-disable;
+	    flag nokeyword;
+	    default enable;
+	    type enumeration {
+		enum enable {
+		    hidden default;
+		    value TRUE;
+		    help "Enable " _ $parameter;
+		}
+		enum disable {
+		    hidden deprecated;
+		    value FALSE;
+		    help "Disable " _ $parameter;
+		}
+	    }
+	}
+    }
+
+    template process-location ($parameter) {
+	leaf "command" {
+	    hidden support;
+	    flag mustquote;
+	    help "Path for " _ $parameter;
+	    require wheel;
+	    type string {
+		range 1 .. DDL_MAXPATHLEN;
+	    }
+	}
+    }
+
+    template toggle-option ($keyword, $flagline,  $helptext) {
+	leaf keyword {
+	    flag $flagline;
+	    flag allow-no;
+	    help $helptext;
+	    type toggle;
+	}
+    }
+
+    template intf-toggle-option ($keyword, $flagline,  $helptext, $interfaces,
+				 $var_line) {
+	leaf $keyword {
+	    flag $flagline;
+	    flag allow-no;
+	    help $helptext;
+	    type toggle;
+	    interface-acceptable $interfaces;
+	    copy-of $var_line;
+	}
+    }
+
+    grouping cos-max-name-len {
+	match "^.{1,64}$" {
+	    message "Must be string of 64 characters or less";
+	}
+    }
+
+    grouping cos-max-alpha-name-len {
+	match "^([a-zA-Z].{0,63})$" {
+	    message "Must be string of 64 characters or less "
+		"beginning with letter";
+	}
+    }
+
+    grouping cos-routing-instance-name-check {
+	match "!^(([\*]{1,})|(__.*__)|(.{129,}))$" {
+	    message "Must be a non-reserved string of 128 characters or less";
+	}
+    }
+
+    param $COS_6BIT_ALIAS_MATCH = "^(([01]{6})|([a-zA-Z].{0,63}))$";
+    param $COS_6BIT_ALIAS_MATCH_MSG = "Not 6-bit pattern or code point alias";
+
+    param $COS_3BIT_ALIAS_MATCH = "^(([01]{3})|([a-zA-Z].{0,63}))$";
+    param $COS_3BIT_ALIAS_MATCH_MSG = "Not 3-bit pattern or code point alias";
+
+    param $IPSEC_SA_MAX_NAME_LEN = 32;  /* Maximum length of ipsec sa name. */
+
+    template access-nai-check ($attr_name) {
+	action commit {
+	    daemon mgd;
+	    function "return mgd_validate_rfc2486(daap, \""
+		_ $attr_name _ "\");";
+	}
+    }
+
+    template access-nai-check-wildcard ($attr_name) {
+	action commit {
+	    daemon mgd;
+	    function "return mgd_validate_rfc2486_or_asterisk(daap, \""
+		_ $attr_name _ "\");";
+        }
+    }
+
+    grouping access-nai-no-rfc2486-toggle {
+	leaf no-rfc2486 {
+	    type toggle;
+	    help "RFC2486 compliance is not enforced";
+	}
+    }
+
+    param $ACCESS_MAX_NAME_LEN = 64;
+    param $DYN_PROF_MAX_NAME_LEN = 80;
+
+    grouping filename-check {
+	match "![/ %]" {
+	    message "Must not contain '/', % or a space";
+	}
+    }
+
+    /*
+     * check for routing instance names 
+     */
+
+    grouping instance-name-check {
+	match "!^((__.*__)|(all)|(.*[ ].*)|(.{129,}))$" {
+	    message "Must be a non-reserved string of 128 characters "
+		"or less with no spaces";
+	}
+    }
+
+    /*
+     * The topology name must be 128 or less characters and not
+     * contain a colon.
+     */
+    grouping topology-name-check {
+	match "!^((.*:.*)|(.{129,}))$" {
+	    message "Must be a non-reserved string of 128 characters or less";
+	}
+    }
+
+    grouping bd-name-check {
+	match "!^((__.*__)|(.{129,})|(.*[+].*))$" {
+	    message "Must be a non-reserved string of 128 characters or less";
+	}
+    }
+
+    grouping instance-existence-check {
+	path-reference "routing-instances <*>";
+	must "routing-instances $$" {
+	    message "referenced routing-instance must be defined";
+	}
+    }
+
+    grouping instance-reference ($hide) {
+	leaf routing-instance  {
+	    help "Use specified routing instance";
+	    type string;
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    uses instance-existence-check;
+	}
+    }
+
+    grouping instance-type-check {
+	path-reference "routing-instances <*>";
+	must "routing-instances $$ instance-type" {
+	    message "'instance-type' for the referenced routing-instance "
+		"must be configured";
+	}
+    }
+
+    grouping instance-name-validate {
+	use instance-name-check;
+	use instance-existence-check;
+    }
+
+    /*
+     * Common match expression for user login names
+     */
+    grouping user-login-name-check {
+	match "^[[:alnum:]_]{1,}[.]{0,1}[[:alnum:]_-]{0,}$" {
+	    message "Must contain characters (alphanumerics, underscores "
+		"or hyphens) beginning with an alphanumeric or an "
+		"underscore character.";
+	}
+    }
+
+    /*
+     * Limit on the name and content of a service-set name
+     */
+    grouping services-name-len-check {
+	match "^[A-Za-z0-9][_0-9A-Za-z-]{0,62}$" {
+	    message "Must be a string beginning with a number or letter "
+		"and consisting of no more than 63 total letters, "
+		"numbers, dashes and underscores.";
+	}
+    }
+
+    /*
+     * Products supporting the GGSN PIC
+     */
+    param $PRODUCTS_SUPPORTING_GGSN = "m5 m10 m20 m120 m320";
+
+    /*
+     * declares a type of regex with length restrictions 
+     */
+    template length-restricted-regex ($len) {
+	type regular-expression;
+    }
+
+    /*
+     * a port..
+     */
+    typedef port {
+	type ushort {
+	    range 1 .. 65535;
+	}
+    }
+
+    grouping radius-target-hostname {
+	key address;
+	leaf address {
+	    type hostname;
+	    help "RADIUS server address";
+	}
+    }
+
+    grouping radius-target-ipaddr {
+	key address;
+	leaf address {
+	    help "RADIUS server address";
+	    type ipv4addr;
+	    flag unicast-only;
+	    match "!^127\.0\.0\.1" {
+		message "The loopback address cannot be used";
+	    }
+	}
+    }
+
+    grouping radius-target-ports {
+	leaf port {
+	    alias authentication-port;
+	    help "RADIUS server authentication port number";
+	    type ushort {
+		range 1 .. 65535;
+	    }
+	    default 1812;
+	}
+	leaf accounting-port {
+	    help "RADIUS server accounting port number";
+	    type ushort {
+		range 1 .. 65535;
+	    }
+	    default 1813;
+	}
+    }
+
+    grouping radius-target-leafs {
+	use radius-target-ipaddr;
+	use radius-target-ports;
+    }
+
+    grouping radius-common-leafs {
+	leaf secret {
+	    help "Shared secret with the RADIUS server";
+	    type unreadable;
+	    flag secret mandatory;
+	    require secret;
+	}
+	leaf timeout {
+	    help "Request timeout period";
+	    type uint {
+		range 1 .. 90;
+	    }
+	    default 3;
+	    units seconds;
+	}
+	leaf retry {
+	    help "Retry attempts";
+	    type uint {
+		range 1 .. 10;
+	    }
+	    default 3;
+	}
+	leaf max-outstanding-requests {
+	    help "Maximum requests in flight to server";
+	    type uint {
+		range 0 .. 2000;
+	    }
+            default 1000;
+	}
+    }
+
+    /*
+     * For SNMP Object ID's 
+     * (note, '\.' doesn't work in the match reg expressions)
+     */
+    typedef oid-name-type {
+	type string;
+	match "^([.]?1|[a-zA-Z][a-zA-Z0-9]*)([.]([a-zA-Z]|[0-9]+))*$" {
+	    message "Must be an OID of the form 1.x.y.z... "
+		"or objname[.x.y.z] where x, y, & z are either numbers "
+		"or a single letter";
+	}
+    }
+
+    /*
+     * For use when multiple objects can be entered
+     */
+    typedef oid-name-type-mult {
+	type string;
+	match "^(([.]?1|[a-zA-Z][a-zA-Z0-9]*)([.]([a-zA-Z]|[0-9]+))*"
+	    "([ ]|$))+$" {
+	    message "Must be an OID of the form 1.x.y.z... "
+		"or objname[.x.y.z] where x, y, & z are either numbers "
+		"or a single letter";
+	}
+    }
+
+    /*
+     * Restriction for named entities in the services configuration
+     */
+    grouping services-reserved-name-check {
+	match "^[[:alnum:]][[:alnum:]_-]*$" {
+	    message "Must be a string beginning with a number "
+		"or letter and consisting of letters, numbers, "
+		"dashes and underscores.";
+	}
+    }
+
+    /*
+     * KMD stuff for the maximum name length
+     */
+    param $KMD_MAX_NAME_LEN = 32; /**< maximum name length that should be
+					 * kept in sync with
+					 * KMD_CHECK_MAX_NAME_LEN check */
+
+    grouping kmd-check-max-name-len {
+	match "^.{1,32}$" {
+	    message "Must be string of 32 characters or less";
+	}
+    }
+
+    param $KMD_MAX_ENROLLMENT_RETRIES = 1080;
+    param $KMD_MAX_ENROLLMENT_RETRY_INTERVAL = 3600;
+    param $KMD_MAX_CRL_REFRESH_TIME = 8784; /* One year */
+    param $KMD_MAX_CRL_URL_STRING_LEN = 500;
+
+    grouping default-tcp-auth-alg {
+	leaf authentication-algorithm {
+	    default hmac-sha-1-96;
+	}
+    }
+
+    template chap-secret-leaf ($attr_name, $help_msg) {
+	leaf $attr_name {
+	    help $help_msg;
+	    type unreadable;
+	    flag secret;
+	    require secret;
+	}
+    }
+
+    grouping vlan-id-range-check {
+	match "^(0[Xx][0-9A-Fa-f]{4}\."
+	    "([0-9]{1,3}|1[0-9]{3}|2[0-9]{3}|3[0-9]{3}|40[0-8][0-9]"
+	    "|409[0-4]))$|^([0-9]{1,3}|1[0-9]{3}|2[0-9]{3}|3[0-9]{3}"
+	    "|40[0-8][0-9]|409[0-4])$" {
+	    message "vlan-id in vlan-tag (0xNNNN.vlan-id) must be 0 to 4094";
+	}
+    }
+  
+    grouping regulation-count-valid-values {
+	match "^(once|100|[0-9]{1,2})$" {
+	    message "Regulation can be 0-100 percentage or 'once'";
+	}
+    }
+
+    /*
+     * Route Target and Route Origin definition syntax. Defined at a common,
+     * place to avoid duplication and hence to maintain consistency.
+     *
+     * Format is target|origin:<AS number x>[L] or IP Address:<number y>
+     * Use <x>L to specify 4 byte AS.
+     */
+    param $ROUTE_TARGET_FORMAT = "^[a-z]+:[0-9\.]+L?:[0-9]+$";
+    param $ROUTE_TARGET_FORMAT_MSG = 
+	"Use format 'target:x:y' where 'x' is an AS number followed by "
+	"an optional 'L' (To indicate 4 byte AS), or an IP address and "
+	"'y' is a number. e.g. target:123456L:100";
+
+    param $ROUTE_TARGET_FILTER_FORMAT =
+	"^[0-9\.]{1,15}L?:[0-9]{1,10}/([0-9]|[2-5][0-9]|6[0-4])$";
+    param $ROUTE_TARGET_FILTER_FORMAT_MSG = 
+	"Use format 'x:y/len' where 'x' is an AS number followed by "
+	"an optional 'L' (To indicate 4 byte AS), or an IP address and "
+	"'y' is a number. e.g. 123456L:100 and len is a prefix length from "
+	"0 to 64";
+
+    param $ROUTE_ORIGIN_FORMAT = "^[a-z]+:[0-9\.]+L?:[0-9]+$";
+    param $ROUTE_ORIGIN_FORMAT_MSG =
+	"Use format 'origin:x:y' where 'x' is an AS number followed by "
+	"an optional 'L' (To indicate 4 byte AS), or an IP address and "
+	"'y' is a number. e.g. target:1.2.3.4:100";
+
+    param $RT_CONSTRAIN_FORMAT =
+    "^[0-9]{1,15}:[0-9\.]{1,15}L?:[0-9]{1,10}/(0|3[2-9]|[4-8][0-9]|9[0-6])$";
+    param $RT_CONSTRAIN_FORMAT_MSG =
+	"Use format 'as:x:y/len' where 'as' is an AS number and "
+	"'x' is an AS number followed by "
+	"an optional 'L' (To indicate 4 byte AS), or an IP address and "
+	"'y' is a number. e.g. 123456L:100 and len is a prefix length from "
+	"32 to 96 or 0";
+
+    param $L2VPN_ID_FORMAT = "^(l2vpn-id)+:[0-9\.]+:[0-9]+$";
+    param $L2VPN_ID_FORMAT_MSG =
+	"Use format 'l2vpn-id:x:y' where 'x' is 2 byte AS number, "
+	"or an IP address and 'y' is a number. e.g. l2vpn-id:1:100, "
+	"l2vpn-id:1.2.3.4:100";
+
+    param $PRODUCTS_SUPPORTING_FTAPLITE = "m120 m320 " _ $MX_SERIES;
+
+    /*
+     * Route distinguisher definition syntax. Defined at a common place,
+     * to avoid duplication and hence to maintain consistency.
+     *
+     * Format is <AS number x>[L] or IP Address:<number y>
+     * Use <x>L to specify 4 byte AS.
+     */
+    param $ROUTE_DISTINGUISHER_FORMAT = "^[0-9\.]+L?:[0-9]+$";
+    param ROUTE_DISTINGUISHER_FORMAT_MSG = 
+	"Use format 'x:y' where 'x' is an AS number followed by "
+	"an optional 'L' (To indicate 4 byte AS), or an IP address and "
+	"'y' is a number. e.g. 123456L:100";
+
+    grouping port-mirror-association-check {
+        path-reference "forwarding-options port-mirroring instance <*>";
+        must "forwarding-options port-mirroring instance $$" {
+	    message "Referenced port-mirroring instance does not exist";
+	}
+    }
+
+    grouping port-mirror-exclude-derived-instance-binding {
+        path-reference "forwarding-options port-mirroring instance <*>";
+        jmust "not(forwarding-options port-mirroring instance "
+	    "$$ input-parameters-instance)" {
+	    message "Derived instance cannot be binded";
+	}
+    }
+
+    grouping sampling-association-check {
+        path-reference "forwarding-options sampling instance <*>";
+        must "forwarding-options sampling instance $$" {
+	    message "Referenced sampling instance does not exist";
+	}
+    }
+
+    grouping juniper-def-routing-switch-options {
+	leaf switch-options {
+	    help "Options for default routing-instance of type virtual-switch";
+	    exemption top_level_tag-1-sgoudar-3e7baafb3ac67d2959922c88ea37f458;
+	    notify l2ald;
+	    require routing;
+	    flag remove-empty;
+	    ACTION_MX_SERIES_L2_SHOW_ONLY;
+	    feature-id "switch-option";
+	    type juniper-def-rtb-switch-options;
+	}
+    }
+
+    template leaf-shared-with ($args) {
+	container shared-with {
+	    help "Name of the resource used to import a shared-id";
+	    flag oneliner;
+	    notify DNAME_VSYNCD;
+
+	    leaf shared-name {
+		help "Name of the shared-with entity";
+		flag nokeyword;
+		mandatory yes;
+		type string {
+		    range 1..64;
+		}
+		use instance-name-check;
+		must "virtual-node" {
+		    message "To configure shared-with, virtual-node "
+			"should be set";
+		}
+		copy-of $args;
+	    }
+	}
+    }
+
+    grouping member-role-choice {
+	choice member-role {
+	    flag strict-order;
+	    argument master {
+		help "Run command on master";
+		option "-m master";
+		type empty;
+	    }
+	    argument backup {
+		help "Run command on backup";
+		option "-m backup";
+		type argument;
+	    }
+	}
+    }
+}
