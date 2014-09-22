@@ -1,0 +1,107 @@
+#
+# Copyright (c) 2014, Juniper Networks, Inc.
+# All rights reserved.
+# See ../Copyright for the status of this software
+#
+
+
+* YANGC - The JUNOS YANG Compiler
+
+** Overview
+
+The YANG standard builds on the experiences of the JUNOS DDL, allowing
+us to correct many mistakes of the past.  But YANG is not a proper
+super set of DDL.  There are many missing features:
+
+- DDL using CPP for constant substitution
+- DDL using CPP macros with arguments
+- DDL "feature" has no YANG equivalent
+
+In addition there are places in DDL where simple logic statements
+would help make meanings more obvious, and more content reusable.
+
+** YIN
+
+Many YANG features use/require XPath support, and the easiest means to
+get this is the use of libxml2, which means putting YANG statements
+into YIN format.  YIN is the XML version of YANG, with a consistent,
+round-trip-capable mapping.
+
+** Enter SLAX
+
+Given that YANGC builds XML, it make sense to use the XML-building
+functions in libslax.  And given that, it make sense to use the logic
+elements from SLAX.  SLAX statements can be freely intermixed with
+YANG statements, playing to the declarative strengths of SLAX.
+
+    leaf foo {
+        name "Foo knob";
+        if ($FOO_IS_MANDATORY) {
+            mandatory true;
+        }
+    }
+
+SLAX templates can be used in place of CPP macros, with features like
+pass-by-name and default values for parameters.
+
+    call gen-foo($help = "Test foo", $hidden = "internal");
+
+    template gen-foo ($help, $mandatory, $hidden) {
+        leaf foo {
+            help $help;
+            if ($mandatory) {
+                mandatory $mandatory;
+            }
+            if ($hidden) {
+                hidden $hidden;
+            }
+        }
+    }
+
+For this all to work, the output of the YANG compiler is an XSLT
+script, which can be run to generate the real YANG module, in YIN
+format. 
+
+** Parameters
+
+Parameters can be declared, with default values, using the SLAX
+syntax:
+
+    param $FOO_IS_MANDATORY;
+    param $MAX_SLOT = 8;
+
+These can be referred to in YANG statements:
+
+    leaf foo {
+        type int {
+            range 0 .. $MAX_SLOT;
+        }
+    }
+
+Internally, this turns into a concat() operation of the strings:
+
+    <xslt:value-of value="concat('0', '..', $MAX_SLOT)"/>
+
+Parameter files on the target device can turn supply local values for
+parameters, using a scheme similar to the way multiple junos-defaults
+files are loaded.  See the gory details in the function
+lib/loadogram.c:gram_load_config_defaults().
+
+This allows multiple custom local values to be loaded. Rah!
+
+** Mechanics
+
+YANGC parses YANG files and checks contents, expands imports and
+includes, replaces groupings, and builds the XSLT script.  But it
+cannot invoke templates or expand constants, since these will depend
+on parameters of the target system.
+
+This XSLT script will need to be packed into a proprietary format for
+JUNOS files, since we can't expose precious internals to our customer
+base.
+
+For customer-provided files, this hidden bit is less important.
+
+The open-source YANGC project will provide a simple encode/decode, but
+provide hooks for a proprietary one for JUNOS modules.
+
