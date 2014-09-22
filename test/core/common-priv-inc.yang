@@ -1,0 +1,1143 @@
+submodule common-priv-inc {
+    /*
+     * Copyright (c) 1998-2008,2014, Juniper Networks, Inc.
+     * All rights reserved.
+     *
+     * Common definitions for typical _internal_ YANG users.
+     * (Not exposed to External/SDK users)
+     */
+
+    action-include "<jnx/daemon_names.h>";
+    action-include "<jnx/jnx_paths.h>";
+
+    grouping propagate-to-init {
+        action propagate {
+            daemon mgd;
+            code "return DAE_INIT";
+        }
+        notify init;
+    }
+
+    grouping propagate-to-ntp {
+        action propagate {
+            daemon mgd;
+            code "return DAE_NTP";
+        }
+        notify ntp;
+    }
+
+    grouping propagate-to-bootpd {
+        action propagate {
+            daemon mgd;
+            code "return DAE_BOOTPD";
+        }
+        notify bootpd;
+    }
+
+    grouping action-dont-recurse {
+        action propagate {
+            daemon mgd;
+            code "return EXPORT_DONT_RECURSE";
+        }
+    }
+
+    /*
+      grouping java {
+          uses java-ex2200;
+          uses java-espresso;
+          uses java-latte;
+          uses java-tsunami;
+          uses java-ex3300;
+      }
+    */
+
+    /*
+     * Macros to restrict configuration to master/non-master instances.
+     */
+    grouping action-match-instance {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "routing-instances*")
+                    || ddl_path_match(daap,
+                        "logical-systems * routing-instances*"))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+	    xpath j:exclude-unless("routing-instances", 
+				   "logical-systems * routing-instances*");
+        }
+    }
+
+    grouping action-match-non-instance {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "routing-instances*")
+                    || ddl_path_match(daap,
+                        "logical-systems * routing-instances*"))
+                    return ACCEPTABLE_EXCLUDE;
+                return ACCEPTABLE_OK;
+                """;
+	    xpath j:exclude-if("routing-instances", 
+			       "logical-systems * routing-instances*");
+        }
+    }
+
+    /*
+     * Macros to hide configuration to master/non-master instances.
+     */
+    grouping action-hide-instance {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "routing-instances*")
+                    || ddl_path_match(daap,
+                        "logical-systems * routing-instances*"))
+                    return ACCEPTABLE_HIDE;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+	    xpath j:hide-if("routing-instances",
+			    "logical-systems * routing-instances*");
+        }
+    }
+
+    grouping action-hide-non-instance {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "routing-instances*")
+                    || ddl_path_match(daap,
+                        "logical-systems * routing-instances*"))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_HIDE;
+                """;
+	    xpath j:hide-unless("routing-instances",
+			    "logical-systems * routing-instances*");
+        }
+    }
+
+    /*
+     * Macros to restrict configuration to bridge-domains.
+     */
+    grouping action-match-bridge {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "bridge-domains*")
+                    || ddl_path_match(daap,
+                        "logical-systems * bridge-domains*"))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+	    xpath j:hide-unless("routing-instances",
+			    "logical-systems * bridge-domains*");
+        }
+    }
+
+    /*
+     * Macros to disallow configuration in bridge-domains.
+     */
+    grouping action-match-non-bridge {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (ddl_path_match(daap, "bridge-domains*")
+                    || ddl_path_match(daap,
+                        "logical-systems * bridge-domains*"))
+                    return ACCEPTABLE_EXCLUDE;
+                return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Exclude if chassis network-services is ethernet and platform is
+     * mx_series.
+     * Reads already-opened config to determine value
+     * Used for config statements
+     */
+    grouping action-mx-series-network-services-ethernet-exclude {
+        action acceptable {
+            daemon mgd;
+            function mgd_mx_series_network_services_ethernet_exclude;
+        }
+    }
+
+    /*
+     * Match products/interfaces which support hierarchical scheduling.
+     */
+    grouping match-hierarchical-scheduler-interface {
+        action acceptable {
+            daemon mgd;
+            code """
+
+    if (ddl_path_match(daap, "*dynamic-profiles*") == ACCEPTABLE_OK)
+        return ACCEPTABLE_EXCLUDE;
+    if ((JNX_PRODUCT_IS_MXSERIES(product_model())
+         || JNX_PRODUCT_IS_ALL_MSERIES(product_model())
+         || JNX_PRODUCT_IS_TSERIES(product_model())
+         || JNX_PRODUCT_IS_TXSERIES(product_model())
+         || JNX_PRODUCT_IS_TXPSERIES(product_model())
+         || JNX_PRODUCT_IS_JSSGSERIES(product_model()))
+        && (mgd_interface_match(daap,
+            INTF_OR(INTF_GR, INTF_GE, INTF_XGE, INTF_AE, INTF_RETH, INTF_LT,
+                    INTF_SI, INTF_PS), 0) == ACCEPTABLE_OK))
+        return ACCEPTABLE_OK;
+    if ((JNX_PRODUCT_IS_MXSERIES(product_model())
+         || JNX_PRODUCT_IS_ACX(product_model()))
+        && (mgd_interface_match (daap, INTF_AT, 0) == ACCEPTABLE_OK))
+        return ACCEPTABLE_OK;
+    return ACCEPTABLE_HIDE;
+
+                  """;
+        }
+    }
+
+
+    /*
+     * Macro to restrict configuration to non-logical-systems.
+     */
+    grouping action-match-non-logical-router {
+        flag master-only;
+    }
+
+    template mgd-action-expand-list ($list) {
+        path-reference $list;
+    }
+
+    template mgd-action-expand-list-and-option ($list) {
+        path-reference $list;
+        action expand {
+            daemon mgd;
+            function ddl_expand_option;
+        }
+    }
+
+    template mgd-action-undefined-warning ($list) {
+        path-reference $list;
+        action warning {
+            daemon mgd;
+            function ddl_warn_undefined_path_reference;
+        }
+    }
+
+    template mgd-action-lr-undefined-warning ($list) {
+        action expand {
+            daemon mgd;
+            code 'return mgd_expand_lsys_then_master(daap, list)';
+        }
+        action warning {
+            daemon mgd;
+            code 'return ddl_warn_undefined_lsys_then_master(daap, '
+                _ $list _ ')';
+        }
+    }
+
+    /* ACX series Products */
+    template exclude-interface-acxseries ($m1, $f1) {
+        action acceptable {
+            daemon mgd;
+            code "return mgd_acxseries_interface_exclude(daap, "
+                _ $m1 _ ", " _ $f1 _ ");";
+        }
+    }
+
+    /*
+     * EX-series products
+     */
+    template action-ex-series-hide {
+        action acceptable {
+            daemon mgd;
+            code """
+                   if (JNX_PRODUCT_IS_EXSERIES(product_model())) {
+                    return ACCEPTABLE_HIDE;                       
+                }
+                return ACCEPTABLE_OK;
+             """;
+        }
+    }
+
+    /*
+     * EX82XX-series products
+     */
+
+    /*
+     * Macro to exclude EX82XX products
+     */
+    grouping action-exchassis-series-exclude {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (JNX_PRODUCT_IS_EXCHASSIS(product_model())
+                    || JNX_PRODUCT_IS_EX_XRE(product_model())) {
+                    return ACCEPTABLE_EXCLUDE;
+                }
+                return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on EX_XRE
+     */   
+    grouping action-hide-on-ex-xre {
+        action acceptable {
+            daemon mgd;
+            code "{
+                  if (JNX_PRODUCT_IS_EX_XRE(product_model())) {
+                      return ACCEPTABLE_HIDE;
+                  }
+                  return ACCEPTABLE_OK;
+            }";
+        }
+    }
+
+    /*
+     * Macro to exclude FX Series products
+     */
+    grouping action-fx-series-exclude {
+        action acceptable {
+            daemon mgd;
+            code "{
+                  if (JNX_PRODUCT_IS_FXSERIES(product_model())) {
+                      return ACCEPTABLE_EXCLUDE;
+                  }
+                  return ACCEPTABLE_OK;
+            }";
+            xpath jcs:test("f-series", "exclude", "ok");
+        }
+    }
+
+    grouping action-fx-edge-mandatory {
+        action mandatory {
+            daemon mgd;
+            code "return JNX_PRODUCT_IS_FXSERIES_EDGE(product_model());";
+            xpath jcs:test("f-series-edge", "yes", "no");
+        }
+    }
+
+    grouping action-mx-series-l2-only {
+        action acceptable {
+            daemon mgd;
+            function mgd_xseries_l2_rel;
+        }
+        product $MX_SERIES $JSSG_SERIES olive $JSRXNLE;
+    }
+
+    grouping action-mx-series-l2-or-acx {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (mgd_xseries_l2_rel(daap) == ACCEPTABLE_OK
+                    || mgd_acxseries(daap) == ACCEPTABLE_OK)
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+        product $MX_SERIES $JSSG_SERIES olive $JSRXNLE $ACX_SERIES;
+    }
+
+    grouping action-erp-supported-products {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (mgd_xseries_l2_rel(daap) == ACCEPTABLE_OK)
+                    return ACCEPTABLE_OK;
+                if (JNX_PRODUCT_IS_EX3242(product_model())
+                    || JNX_PRODUCT_IS_EX_XRE(product_model())
+                    || JNX_PRODUCT_IS_EXCHASSIS(product_model())
+                    || JNX_PRODUCT_IS_EX_FIXED(product_model()))
+                    return ACCEPTABLE_OK;
+                }
+                return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+        product $MX_SERIES $JSSG_SERIES olive $JSRXNLE $JAVA
+            $EX_SERIES_CHAS $EX_XRE;
+    }
+
+    grouping action-erp-supported-products-or-acx {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (mgd_xseries_l2_rel(daap) == ACCEPTABLE_OK)
+                    return ACCEPTABLE_OK;
+                if (JNX_PRODUCT_IS_EXSERIES(product_model()))
+                    return ACCEPTABLE_OK;
+                if (mgd_acxseries(daap) == ACCEPTABLE_OK)
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+        product $MX_SERIES $JSSG_SERIES olive $JSRXNLE $JAVA
+            $ACX_SERIES $EX_SERIES_CHAS $EX_XRE;
+    }
+
+    grouping action-mx-series-clock-l2-only {
+        action acceptable {
+            dameon mgd;
+            function mgd_xseries_l2_rel;
+        }
+        product $MX_SERIES_CLOCK_SUPPORT;
+    }
+
+    grouping action-mx-or-acx-clock {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (mgd_xseries_l2_rel(daap) == ACCEPTABLE_OK
+                    || mgd_acxseries(daap) == ACCEPTABLE_OK)
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+        product $MX_SERIES_CLOCK_SUPPORT $ACX_SERIES;
+    }
+
+    grouing action-mx-series-l2-only-mx80-exclude {
+        action acceptable {
+            daemon mgd;
+            function mgd_xseries_l2_rel;
+        }
+        product $MX_SERIES_MX80_EXCLUDE $JSSG_SERIES olive;
+    }
+
+    grouping action-mx-series-l2-exclude {
+        action acceptable {
+            daemon mgd;
+            code "return (mgd_xseries_l2_rel(daap) == ACCEPTABLE_EXCLUDE)
+                         ? ACCEPTABLE_OK : ACCEPTABLE_EXCLUDE";
+        }
+    }
+
+    grouping action-mx-series-l2-only-exclude {
+        action acceptable {
+            daemon mgd;
+            code "return (mgd_xseries_l2_only_rel(daap) == ACCEPTABLE_EXCLUDE)
+                         ? ACCEPTABLE_OK : ACCEPTABLE_EXCLUDE";
+        }
+    }
+
+    grouping action-mx-series-l2-show-only {
+        action acceptable {
+            daemon mgd;
+            code "return (mgd_xseries_l2_rel(daap) == ACCEPTABLE_OK)
+                         ? ACCEPTABLE_OK : ACCEPTABLE_HIDE";
+        }
+    }
+
+    /*
+     * Macro to exclude MX_SERIES, this is useful if the object already
+     *   as some other product exclude (eg., product J_SERIES_EXCLUDE)
+     */
+    grouping action-mx-series-exclude {
+        product-exclude $MX_SERIES;
+    }
+
+    /*
+     * Action to unhide on MX_SERIES
+     */
+    grouping action-unhide-on-mx-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_HIDE;
+            """;
+        }
+    }
+
+    /*
+     * Action to unhide on MX , M320 and M120.
+     */
+    grouping action-unhide-on-mx-m320-m120 {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                    return ACCEPTABLE_OK;
+                if (JNX_PRODUCT_IS_JSSGSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M120)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M320)
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                """;
+        }
+    }
+
+    /*
+     * Action to unhide on MX, M320, M120 and Spiff.
+     */
+    grouping action-unhide-on-ichip-platforms {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  if (JNX_PRODUCT_IS_JSSGSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M120)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M320)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M7I)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M10I)
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                  """;
+        }
+    }
+
+    /* 
+     * Action to unhide on MX and M320.
+     */
+    grouping action-unhide-on-mx-m320 {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M320)
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                 """;
+        }
+    }
+
+    /*
+     * Action to unhide on M120(Reno).
+     */
+    grouping action-unhide-on-m120 {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (product_model() == MODEL_M120)
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                 """;
+        }
+    }
+
+    /*
+     * Action to unhide on MX_SERIES m120 m320 m7i and m10i
+     */
+    grouping action-unhide-on-m-and-mx-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M120)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M320)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M7I)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M10I)
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on MX_SERIES
+     */
+    grouping action-hide-on-mx-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_MXSERIES(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on M320
+     */
+    grouping action-hide-on-m320 {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (product_model() == MODEL_M320)
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on T_SERIES
+     */   
+    grouping action-hide-on-t-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_TSERIES(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on JSSG_SERIES
+     */   
+    grouping action-hide-on-jssg-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_JSSGSERIES(product_model())
+                      && !JNX_PRODUCT_IS_MAG8600(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    grouping action-hide-on-jssg-lowend-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_JSSG_LOWEND_SERIES(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to hide on ACX_SERIES
+     */
+    grouping ACTION_HIDE_ON_ACX_SERIES {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_ACX(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                 """;
+        }
+    }
+
+    /*
+     * Action to exclude on SRX1400(A1 Emerald).
+     */
+    grouping action-exclude-on-srx1400 {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (product_model() == MODEL_A1)
+                      return ACCEPTABLE_EXCLUDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Action to include only ICHIP and Gimlet chipset based platforms.
+     */
+    grouping action-include-ichip-and-gimlet-platforms {
+        product mx-series olive m120 m320 m7i m10i t640 t320 tx4 txp;
+    }
+
+    /*
+     * Action to hide on J_SERIES
+     */   
+    grouping action-hide-on-j-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_JSERIES(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    grouping action-include-on-j-series {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (JNX_PRODUCT_IS_JSERIES(product_model()))
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+    }
+
+/*
+ * Macro to exclude JCS SCE products
+ */
+    grouping action-jcs-sce-exclude {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (JNX_PRODUCT_IS_JCS_SCE(product_model()))
+                    return ACCEPTABLE_EXCLUDE;
+                return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    /*
+     * Restrict layer-2-3 (combined layer 2 and 3 package) on the
+     * platforms other than m7i and m10i. However on m10i it is a
+     * hidden support.
+     */
+    grouping services-layer-2-3-include {
+        action acceptable {
+            daemon mgd;
+            code """
+                  if (product_model() == MODEL_M7I)
+                      return ACCEPTABLE_OK;
+                  if (product_model() == MODEL_M10I)
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_EXCLUDE;
+                """;
+        }
+    }
+
+    /*
+     * PSD related
+     */
+    grouping action-not-psd {
+        action acceptable {
+            daemon mgd;
+            code """
+                if (mchassis_is_psd())
+                    return ACCEPTABLE_EXCLUDE;
+                return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    grouping action-hide-psd {
+        action acceptable {
+            daemon mgd;
+            code """;
+                if (mchassis_is_psd())
+                    return ACCEPTABLE_HIDE;
+                return ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    grouping lacp-system-prio-attrib {
+        leaf system-priority {
+            help "Priority of the system (0 ... 65535)";
+            type ushort;
+            flag kilo;
+            feature-id "system-priority";
+        }
+    }
+
+    grouping action-mx-series-l2-only {
+        action acceptable {
+            daemon mgd;
+            function mgd_xseries_l2_rel;
+        }
+        product $MX_SERIES $JSSG_SERIES olive $JSRXNLE;
+    }
+
+    /*
+     * CEMIC
+     *
+     * Please note EXCLUDE_CEMIC has MX_SERIES and ACX_SERIES.
+     */
+    /* XXX This needs moved to dcd.yang 
+    grouping exclude-cemic-intf-at {
+        uses exclude-interface-mxseries(INTF_AT, 0);
+    }
+    */
+
+    grouping exclude-emic {
+        product-exclude $PRODUCTS_SUPPORTING_CE_MICS
+            $PRODUCTS_SUPPORTING_CET1E1_MICS;
+    }
+
+    grouping hide-for-cemic {
+        uses action-hide-on-mx-series;
+    }
+
+    grouping exclude-cemic-interface-acx {
+        call exclude-interface-acxseries($m1 = INTF_AT, $f1 = 0);
+    }
+
+    /*
+     * CET1E1 MIC (ACX)
+     */
+    grouping hide-for-acx {
+        uses action-hide-on-acx-series;
+    }
+
+    grouping lr-name-check {
+        match "^[a-zA-Z0-9_-]{1,63}$" {
+            message "Logical-system name is a string consisting "
+                "of up to 63 letters, numbers, dashes and underscores";
+        }
+    }
+
+    /*
+     * For hiding features that are not supported by I chip.
+     *
+     * Note that if a platform, such as M320, can have I chip or other
+     * chipsets depending on the FPC installed, it does *NOT* belong to
+     * this list. Because those features are legitimate options if the user
+     * has no I chip FPC's inserted. We rely on LOG_CONFLICT on syslog from
+     * the PFE to warn the user in that case.
+     */
+    grouping action-i-chip-exclude {
+        action acceptable {
+            daemon mgd;
+            code """
+                return (JNX_PRODUCT_IS_MXSERIES(product_model())
+                        || product_model() == MODEL_M120)
+                      ? ACCEPTABLE_EXCLUDE: ACCEPTABLE_OK;
+                """;
+        }
+    }
+
+    grouping action-unhide-on-jseries-and-exchassis {
+        action acceptable {
+            daemon mgd;
+            code """
+                    if (JNX_PRODUCT_IS_JSERIES(product_model())
+                    || JNX_PRODUCT_IS_EXCHASSIS(product_model())
+                    || JNX_PRODUCT_IS_EX_XRE(product_model()))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_HIDE;
+                """;
+        }
+    }
+
+    grouping action-unhide-on-jseries-and-exseries {
+	action acceptable {
+	    daemon mgd;
+	    code """
+                if (JNX_PRODUCT_IS_JSERIES(product_model())
+                    || JNX_PRODUCT_IS_EXCHASSIS(product_model())
+                    || JNX_PRODUCT_IS_EX_FIXED(product_model())
+                    || JNX_PRODUCT_IS_EX_XRE(product_model()))
+                    return ACCEPTABLE_OK;
+                return ACCEPTABLE_HIDE;
+                """;
+	}
+    }
+
+    /*
+     * Products supporting tri-color policing
+     */
+    grouping action-unhide-on-jseries {
+	action acceptable {
+	    daemon mgd;
+	    code "return (mgd_product_jseries() == ACCEPTABLE_OK)
+                        ? ACCEPTABLE_OK : ACCEPTABLE_HIDE";
+	}
+    }
+
+    grouping action-enable-nsr-products-hide-on-m120 {
+	action acceptable {
+	    daemon mgd;
+	    function mgd_product_enable_nsr_hide_m120;
+	}
+    }
+
+    /*
+     * Action acceptable by installed package.  Removes commands/config
+     * if the package given is not installed.
+     *
+     * GGSN can key off of the jggsn package.  Jcrypto and jweb "tests"
+     * need to work on both M&T and on Pepsi, so we need to key off of
+     * the presence of something else, in this case, a daemon
+     */
+    grouping ggsn-installed {
+        action acceptable {
+	    daemon mgd;
+	    code 'return ddl_package_acceptable(PKGNAME_JGGSN)';
+	}
+    }
+
+    grouping jweb-installed {
+        action acceptable {
+	    daemon mgd;
+	    code "return ddl_directory_acceptable(PATH_HTTPD_JAIL)";
+	}
+    }
+
+    grouping jweb-ex-installed {
+        action acceptable {
+	    daemon mgd;
+	    code "return ddl_directory_acceptable(PATH_HTTPD_JAIL)";
+	}
+    }
+
+    grouping jcrypto-installed {
+        action acceptable {
+	    daemon mgd;
+	    code "return ddl_daemon_acceptable(DNAME_KMD)";
+	}
+    }
+
+    grouping jweb-or-jcrypto-installed {
+        action acceptable {
+	    daemon mgd;
+	    code """return ddl_directory_acceptable(PATH_HTTPD_JAIL)
+                                || ddl_daemon_acceptable(DNAME_KMD)""";
+	}
+    }
+
+    /*
+     * This is a wimpy way to do this, but ...
+     * We force the <script> to be the first argument by testing (in
+     * mgd_only_as_first_argument) to see that no arguments are
+     * present.  We reverse the test for secondary arguments.
+     * This is a hack, so please don't repeat it, but this is
+     * the only way to get the natural syntax that we're after.
+     */
+    grouping first-argument-only {
+	action acceptable {
+	    daemon mgd;
+	    function mgd_only_as_first_argument;
+	}
+    }
+
+    grouping second-argument-only {
+	action acceptable {
+	    daemon mgd;
+	    code "return (mgd_only_as_first_argument(daap) == ACCEPTABLE_OK)
+                        ? ACCEPTABLE_HIDE : ACCEPTABLE_OK";
+	}
+    }
+
+    template radius-source-address ($hide) {
+	leaf source-address {
+	    help "Use specified address as source address";
+	    if ($hide) {
+		hidden $hide;
+	    }
+	    type ipv4addr;
+	    flag unicast-only;
+	}
+    }
+
+    /* 
+     * Macros to disable the unsupported dynamic-profile interface leafs
+     */
+    template leaf-exclude-dynamic-profile ($keyword) {
+	leaf $keyword {
+	    action acceptable {
+		daemon mgd;
+		function mgd_unacceptable_in_dynamic_profile;
+	    }
+	}
+    }
+
+    template leaf-include-only-in-dynamic-profile ($keyword) {
+	leaf $keyword {
+	    action acceptable {
+		daemon mgd;
+		function mgd_acceptable_only_in_dynamic_profile;
+	    }
+	}
+    }
+
+    grouping enab-disab-leaf-exclude-dynamic-profile {
+	leaf enab_disab {
+	    type enumeration {
+		enum enable {
+		    action acceptable {
+			daemon mgd;
+			function mgd_unacceptable_in_dynamic_profile;
+		    }
+		}
+		enum disable {
+		    action acceptable {
+			daemon mgd;
+			function mgd_unacceptable_in_dynamic_profile;
+		    }
+		}
+	    }
+	}
+    }
+
+    grouping pointedness-leaf-exclude-dynamic-profile {
+	leaf pointedness {
+	    type enumeration {
+		enum point-to-point {
+		    action acceptable {
+			daemon mgd;
+			function mgd_unacceptable_in_dynamic_profile;
+		    }
+		}
+		enum multipoint {
+		    action acceptable {
+			daemon mgd;
+			function mgd_unacceptable_in_dynamic_profile;
+		    }
+		}
+	    }
+	}
+    }
+
+    grouping leaf-exclude-dyn-profiles {
+	action acceptable {
+	    daemon mgd;
+	    code """
+               if (ddl_path_match(daap, "*dynamic-profiles*") == ACCEPTABLE_OK)
+                   return ACCEPTABLE_EXCLUDE;
+               return ACCEPTABLE_OK;
+               """;
+	}
+    }
+
+    /*
+     * Macro to include items only for dynamic-profiles. 
+     */
+    grouping leaf-include-dyn-profiles {
+	action acceptable {
+	    daemon mgd;
+	    code """
+               if (ddl_path_match(daap, "*dynamic-profiles*") == ACCEPTABLE_OK)
+                   return ACCEPTABLE_OK;
+               return ACCEPTABLE_EXCLUDE;
+               """;
+	}
+    }
+
+    /* verify Safari PSD name */
+    grouping psd-name-check {
+	match "^psd([1-9]|[1-2][0-9]|[3][0-1])$" {
+	    message "Protected system domain name is a string "
+		"consisting of 'psd' follows by the PSD ID (1-31), ex. psd2";
+	}
+    }
+
+    /*
+     * Macro for checksum hierarchy used in commit(system.cnf.dd),
+     * op(system.cnf.dd) and event(event.cnf.dd) scripts.
+     */
+    grouping scripts-checksum {
+	container checksum {
+	    help "Checksum of this script";
+	    flag oneliner-plus remove-empty;
+
+	    leaf md5 {
+		help "MD5 checksum of this script";
+		type string {
+		    range 1 .. MAX_SIMPLE_STRING_LENGTH;
+		}
+	    }
+
+	    leaf sha1 {
+		help "SHA1 checksum of this script";
+		type string {
+		    range 1 .. MAX_SIMPLE_STRING_LENGTH;
+		}
+	    }
+
+	    leaf sha-256 {
+		help "SHA-256 checksum of this script";
+		type string {
+		    range 1 .. MAX_SIMPLE_STRING_LENGTH;
+		}
+	    }
+        }
+    }
+
+    grouping psd-name-help-string {
+	help "Name of protected system domain (psd[1-31], ex. psd2)";
+    }
+
+    /* IP address location pools definitions */
+    param $DCD_MAX_LOCATION_POOLS = 10;
+    param $DCD_MAX_LOCATION_POOL_ENTRIES = 32;
+    param $DCD_LOCATION_POOL_NAME_MIN = 1;
+    param $DCD_LOCATION_POOL_NAME_MAX = 64;
+
+    /*
+     * Regular expression for specifying FC virtual fabric Name or ID
+     */
+    grouping fc-fabric-name-or-tag-format-check {
+	match "^([[:alpha:]][[:alnum:]_.-]+)|^([1-9][0-9]{0,2}"
+	    "|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])$" {
+	    message "Must be a valid FC fabric name or ID";
+	}
+	param $PRODUCTS_SUPPORTING_SHA2_256
+	    JSRXNLE_SRX_1XX JSRXNLE_SRX_2XX SRXMR;
+    }
+
+    /*
+     * Regular expression for specifying FC Fabric Name or FC Fabric ID
+     * or FC Fabric range string
+     */
+    grouping fc-fabric-reference-string-format-check {
+	match "(^([[:alpha:]][[:alnum:]_.-]+)$)|"
+	    "(^([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])$)|"
+	    "(^(([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4])\-"
+	    "([1-9][0-9]{0,2}|[1-3][0-9]{3}|40[0-8][0-9]|409[0-4]))$)" {
+	    message "Must be a  valid FC fabric name, fabric ID or "
+		"ID range string";
+	}
+    }
+
+    grouping juniper-routing-instance-mac-option {
+	leaf routing-instance-mac {
+	    help "Routing Instance MAC address";
+	    product FX_SERIES;
+	    hidden internal;
+	    flag mustquote;
+	    type mac-unicast;
+	}
+    }
+
+    grouping juniper-fc-protocol-mac-option {
+	container fc-mac {
+	    help "FC MAC";
+	    product FX_SERIES;
+	    hidden internal;
+
+	    leaf mac-base {
+		help "Base MAC address";
+		flag mustquote;
+		type mac-unicast;
+	    }
+
+	    leaf mac-count {
+		help "MAC Count";
+		type uint {
+		    range 1 .. 256;
+		}
+	    }
+        }
+    }
+
+    grouping action-unhide-on-sng-series {
+	action acceptable {
+	    daemon mgd;
+	    code """
+                  if (JNX_PRODUCT_IS_SANGRIA(product_model()))
+                      return ACCEPTABLE_OK;
+                  return ACCEPTABLE_HIDE;
+                """;
+	}
+    }
+
+    grouping action-hide-on-sng-series {
+	action acceptable {
+	    daemon mgd;
+	    code """
+                  if (JNX_PRODUCT_IS_SANGRIA(product_model()))
+                      return ACCEPTABLE_HIDE;
+                  return ACCEPTABLE_OK;
+                """;
+	}
+    }
+}
