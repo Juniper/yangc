@@ -1,0 +1,19 @@
+module foo {
+    param $test-default = 1;
+
+    namespace "http://foo.example.net" {
+        prefix foo;
+    }
+    contact "Phil Shafer";
+
+    augment protocols {
+        leaf test {
+            description "test help";
+            type int {
+                range 1 .. 100;
+            }
+            default $test-default;
+            must some-function("test");
+        }
+    }
+}
