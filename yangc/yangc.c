@@ -44,6 +44,7 @@
 
 static slax_data_list_t plist;
 static int nbparams;
+static slax_data_list_t param_files;
 
 static int options = XSLT_PARSE_OPTIONS;
 
@@ -71,6 +72,107 @@ get_filename (const char *filename, char ***pargv, int outp)
     return filename;
 }
 
+static void
+mergeParamFile (xmlDocPtr docp UNUSED, xmlDocPtr sourcedoc UNUSED)
+{
+    slaxLog("handleParams: %p %p", docp, sourcedoc);
+
+    xmlNodePtr insp = sourcedoc->children->children;
+    xmlNodePtr nodep, newp;
+
+    for (nodep = docp->children->children; nodep; nodep = nodep->next) {
+	newp = xmlDocCopyNode(nodep, sourcedoc, 1);
+	xmlAddPrevSibling(insp, newp);
+    }
+}
+
+static int
+do_eval (xmlDocPtr sourcedoc, const char *sourcename, const char *input)
+{
+    xmlDocPtr indoc;
+    xmlDocPtr res = NULL;
+    xsltStylesheetPtr source;
+    const char **params = alloca(nbparams * 2 * sizeof(*params) + 1);
+    slax_data_node_t *dnp;
+    int i = 0;
+
+    SLAXDATALIST_FOREACH(dnp, &plist) {
+	params[i++] = dnp->dn_data;
+    }
+
+    params[i] = NULL;
+
+    source = xsltParseStylesheetDoc(sourcedoc);
+    if (source == NULL || source->errors != 0)
+	errx(1, "%d errors parsing source: '%s'",
+	     source ? source->errors : 1, sourcename);
+
+    SLAXDATALIST_FOREACH(dnp, &param_files) {
+	const char *name = dnp->dn_data;
+	FILE *fp = fopen(name, "r");
+	if (fp == NULL)
+	    err(1, "cannot open parameter file '%s'", name);
+
+	xmlDocPtr docp = yangLoadParams(name, fp, NULL);
+	if (docp) {
+	    mergeParamFile(docp, sourcedoc);
+	    xmlFreeDoc(docp);
+	}
+
+	fclose(fp);
+    }
+
+    if (input)
+	indoc = xmlReadFile(input, encoding, options);
+    else
+	indoc = yangFeaturesBuildInputDoc();
+
+    if (indoc == NULL)
+	errx(1, "unable to parse: '%s'", input);
+
+    if (opt_indent)
+	source->indent = 1;
+
+    if (opt_debugger) {
+	slaxDebugInit();
+	slaxDebugSetStylesheet(source);
+	res = slaxDebugApplyStylesheet(sourcename, source,
+				 slaxFilenameIsStd(input) ? NULL : input,
+				 indoc, params);
+    } else {
+	res = xsltApplyStylesheet(source, indoc, params);
+    }
+
+    if (res) {
+	FILE *outfile = stdout;
+
+	xsltSaveResultToFile(outfile, res, source);
+	yangWriteDoc((slaxWriterFunc_t) fprintf, outfile, res, 0);
+
+	xmlFreeDoc(res);
+    }
+
+    xmlFreeDoc(indoc);
+    xsltFreeStylesheet(source);
+
+    return 0;
+}
+
+static int
+do_post (const char *name, const char *output UNUSED,
+	 const char *input, char **argv)
+{
+    name = get_filename(name, &argv, -1);
+    
+    xmlDocPtr docp = xmlReadFile(name, NULL, XSLT_PARSE_OPTIONS);
+    if (docp == NULL) {
+	errx(1, "cannot parse file: '%s'", name);
+        return -1;
+    }
+
+    return do_eval(docp, name, input);
+}
+
 static int
 do_work (const char *name, const char *output, const char *input,
 	 char **argv, int full_eval)
@@ -78,9 +180,6 @@ do_work (const char *name, const char *output, const char *input,
     xmlDocPtr sourcedoc;
     const char *sourcename;
     FILE *sourcefile, *outfile;
-    xmlDocPtr indoc;
-    xsltStylesheetPtr source;
-    xmlDocPtr res = NULL;
     char buf[BUFSIZ];
 
     sourcename = get_filename(name, &argv, -1);
@@ -107,69 +206,13 @@ do_work (const char *name, const char *output, const char *input,
 	    err(1, "could not open output file: '%s'", output);
     }
 
-    slaxDumpToFd(fileno(outfile), sourcedoc, FALSE);
-
-    if (!full_eval)
-	return 0;
-
-    const char **params = alloca(nbparams * 2 * sizeof(*params) + 1);
-    slax_data_node_t *dnp;
-    int i = 0;
-    SLAXDATALIST_FOREACH(dnp, &plist) {
-	params[i++] = dnp->dn_data;
-    }
-
-    params[i] = NULL;
-
-    source = xsltParseStylesheetDoc(sourcedoc);
-    if (source == NULL || source->errors != 0)
-	errx(1, "%d errors parsing source: '%s'",
-	     source ? source->errors : 1, sourcename);
-
-    if (input)
-	indoc = xmlReadFile(input, encoding, options);
-    else
-	indoc = yangFeaturesBuildInputDoc();
-
-    if (indoc == NULL)
-	errx(1, "unable to parse: '%s'", input);
-
-    if (opt_indent)
-	source->indent = 1;
-
-    if (opt_debugger) {
-	slaxDebugInit();
-	slaxDebugSetStylesheet(source);
-	res = slaxDebugApplyStylesheet(sourcename, source,
-				 slaxFilenameIsStd(input) ? NULL : input,
-				 indoc, params);
+    if (full_eval) {
+	return do_eval(sourcedoc, sourcename, input);
     } else {
-	res = xsltApplyStylesheet(source, indoc, params);
+	slaxDumpToFd(fileno(outfile), sourcedoc, FALSE);
     }
-
-    if (res) {
-	if (output == NULL || slaxFilenameIsStd(output))
-	    outfile = stdout;
-	else {
-	    outfile = fopen(output, "w");
-	    if (outfile == NULL)
-		err(1, "could not open file: '%s'", output);
-	}
-
-	xsltSaveResultToFile(outfile, res, source);
-	yangWriteDoc((slaxWriterFunc_t) fprintf, outfile, res, 0);
-
-	if (outfile != stdout)
-	    fclose(outfile);
-
-	xmlFreeDoc(res);
-    }
-
-    xmlFreeDoc(indoc);
-    xsltFreeStylesheet(source);
 
     return 0;
-
 }
 
 static int
@@ -224,6 +267,7 @@ main (int argc UNUSED, char **argv)
     setenv("MallocScribble", "true", 1);
 
     slaxDataListInit(&plist);
+    slaxDataListInit(&param_files);
 
     for (argv++; *argv; argv++) {
 	cp = *argv;
@@ -292,8 +336,14 @@ main (int argc UNUSED, char **argv)
 	    slaxDataListAddNul(&plist, pname);
 	    slaxDataListAddNul(&plist, tvalue);
 
-	} else if (streq(cp, "--partial") || streq(cp, "-p")) {
+	} else if (streq(cp, "--partial")) {
 	    opt_partial = TRUE;
+
+	} else if (streq(cp, "--param-file") || streq(cp, "-P")) {
+	    slaxDataListAddNul(&param_files, *++argv);
+
+	} else if (streq(cp, "--post") || streq(cp, "-p")) {
+	    func = do_post;
 
 	} else if (streq(cp, "--trace") || streq(cp, "-t")) {
 	    trace_file = *++argv;
@@ -314,8 +364,6 @@ main (int argc UNUSED, char **argv)
 	    return -1;
 	}
     }
-
-
 
     cp = getenv("SLAXPATH");
     if (cp)
