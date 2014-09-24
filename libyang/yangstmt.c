@@ -469,6 +469,10 @@ yangConcatValues (slax_data_t *sdp, slax_string_t *one,
 		slaxStringFree(two);
 		two = ssp;
 	    }
+	} else {
+	    slax_string_t *spacep = slaxStringLiteral(" ", T_QUOTED);
+	    ssp = slaxStringLiteral("_", L_UNDERSCORE);
+	    one = slaxConcatRewrite(sdp, one, ssp, spacep);
 	}
     }
 
