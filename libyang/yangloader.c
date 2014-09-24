@@ -462,3 +462,82 @@ yangLoadFile (const char *template, const char *filename, FILE *file,
 
     return docp;
 }
+
+xmlDocPtr
+yangLoadParams (const char *filename, FILE *file,
+		xmlDictPtr dict)
+{
+    slax_data_t sd;
+    yang_data_t yd;
+    int rc;
+    xmlParserCtxtPtr ctxt = xmlNewParserCtxt();
+
+    if (ctxt == NULL)
+	return NULL;
+
+    /*
+     * Turn on line number recording in each node
+     */
+    ctxt->linenumbers = 1;
+
+    if (dict) {
+	if (ctxt->dict)
+	    xmlDictFree(ctxt->dict);
+
+    	ctxt->dict = dict;
+ 	xmlDictReference(ctxt->dict);
+    }
+
+    bzero(&sd, sizeof(sd));
+
+    /* We want to parse SLAX, either full or partial */
+    sd.sd_parse = sd.sd_ttype = M_YANG;
+    sd.sd_flags |= SDF_SLSH_COMMENTS;
+
+    strncpy(sd.sd_filename, filename, sizeof(sd.sd_filename));
+    sd.sd_file = file;
+
+    sd.sd_ctxt = ctxt;
+
+    ctxt->version = xmlCharStrdup(XML_DEFAULT_VERSION);
+    ctxt->userData = &sd;
+
+    /*
+     * Fake up an inputStream so the error mechanisms will work
+     */
+    if (filename)
+	xmlSetupParserForBuffer(ctxt, (const xmlChar *) "", filename);
+
+    sd.sd_docp = slaxBuildDoc(&sd, ctxt);
+    if (sd.sd_docp == NULL) {
+	slaxDataCleanup(&sd);
+	return NULL;
+    }
+
+    if (filename != NULL)
+        sd.sd_docp->URL = (xmlChar *) xmlStrdup((const xmlChar *) filename);
+
+    /* Add the YIN namespace to the root node */
+    xmlNewNs(sd.sd_ctxt->node, (const xmlChar *) YIN_URI,
+			    (const xmlChar *) YIN_PREFIX);
+
+    bzero(&yd, sizeof(yd));
+    sd.sd_opaque = &yd;		/* Hang our data off the slax parser */
+
+    rc = yangParse(&sd);
+
+    if (sd.sd_errors) {
+	slaxError("%s: %d error%s detected during parsing (%d)",
+	  sd.sd_filename, sd.sd_errors, (sd.sd_errors == 1) ? "" : "s", rc);
+
+	slaxDataCleanup(&sd);
+	return NULL;
+    }
+
+    /* Save docp before slaxDataCleanup nukes it */
+    xmlDocPtr docp = sd.sd_docp;
+    sd.sd_docp = NULL;
+    slaxDataCleanup(&sd);
+
+    return docp;
+}    
