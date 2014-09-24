@@ -240,6 +240,7 @@
 %token M_PARSE_PARTIAL		/* Parse partial SLAX contents */
 %token M_JSON			/* Parse a JSON document */
 %token M_YANG			/* Parse a YANG document */
+%token M_YANG_PARAM		/* Parse a YANG parameter document */
 
 /*
  * YANG statement argument types.  These allow the statement to
@@ -381,6 +382,9 @@ start :
 		{ $$ = STACK_CLEAR($1); }
 
 	| M_YANG yang_content
+		{ $$ = STACK_CLEAR($1); }
+
+	| M_YANG_PARAM yang_param_content
 		{ $$ = STACK_CLEAR($1); }
 	;
 
@@ -4022,3 +4026,28 @@ yang_stmt_block :
 		{ $$ = NULL; }
 	;
 
+yang_param_content :
+	yang_param_list
+		{ $$ = NULL; }
+	;
+
+yang_param_list :
+	/* empty */
+		{ $$ = NULL; }
+	| yang_param_list yang_param_stmt
+		{
+		    ALL_KEYWORDS_ON();
+		    $$ = NULL;
+		}
+	;
+
+yang_param_stmt :
+	param_decl
+		{ $$ = NULL; }
+
+	| var_decl
+		{ $$ = NULL; }
+
+	| explicit_named_template
+		{ $$ = NULL; }
+	;
