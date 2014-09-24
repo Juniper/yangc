@@ -94,3 +94,6 @@ yangFeatureAdd (const char *feature_name);
 
 xmlDocPtr
 yangFeaturesBuildInputDoc (void);
+
+xmlDocPtr
+yangLoadParams (const char *filename, FILE *file, xmlDictPtr dict);
