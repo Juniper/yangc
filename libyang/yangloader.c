@@ -145,6 +145,7 @@ yangFileLoadContents (yang_file_list_t *listp,
     }
 
     bzero(&sd, sizeof(sd));
+    sd.sd_line = 1;
 
     /* We want to parse SLAX, either full or partial */
     sd.sd_parse = sd.sd_ttype = M_YANG;
@@ -489,6 +490,7 @@ yangLoadParams (const char *filename, FILE *file,
     }
 
     bzero(&sd, sizeof(sd));
+    sd.sd_line = 1;
 
     /* We want to parse SLAX, either full or partial */
     sd.sd_parse = sd.sd_ttype = M_YANG;
