@@ -146,8 +146,8 @@ yangStmtSetArgHelp (YANG_STMT_SETARG_ARGS)
     const xmlChar *name;
 
     if (docp != NULL && docp->dict != NULL)
-	name = xmlDictLookup(docp->dict, (const xmlChar *) YS_HELP, -1);
-    else name = xmlStrdup((const xmlChar *) YS_HELP);
+	name = xmlDictLookup(docp->dict, (const xmlChar *) YS_DESCRIPTION, -1);
+    else name = xmlStrdup((const xmlChar *) YS_DESCRIPTION);
 
     if (name) {
 	if (docp == NULL || docp->dict == NULL
@@ -155,6 +155,7 @@ yangStmtSetArgHelp (YANG_STMT_SETARG_ARGS)
 	    xmlFree(const_drop(nodep->name));
 
 	nodep->name = name;
+	nodep->ns = ydp->yd_nsp;
     }
 
     return 0;
@@ -1216,9 +1217,9 @@ static yang_stmt_t yangStmtBuiltinExtensions[] = {
     },
 
     { /* "help" statement */
-    .ys_name = "help",
+    .ys_name = YS_HELP,
     .ys_argument = YS_TEXT,
-    .ys_flags = 0,
+    .ys_flags = YSF_YINELEMENT,
     .ys_type = Y_STRING,
     .ys_parents = ys_yangc_help_parents,
     .ys_setarg = yangStmtSetArgHelp,
