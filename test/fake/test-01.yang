@@ -1,6 +1,6 @@
 module foo {
     param $test-default = 15;
-    param $test-mini = 1;
+    param $test-min = 1;
     param $test-max = 100;
 
     namespace "http://foo.example.net" {
@@ -11,7 +11,7 @@ module foo {
     augment protocols {
 	container my-stuff {
 	    leaf test {
-		description "test help";
+		help "test help";
 		type int {
 		    range $test-min .. $test-max;
 		}
@@ -20,7 +20,11 @@ module foo {
 	    }
 
 	    leaf-list funky {
-		description "Funky stuff";
+		help "Funky stuff";
+		type string;
+	    }
+	    leaf-list funky-too {
+		description "More funky stuff";
 		type string;
 	    }
         }
