@@ -72,8 +72,78 @@ get_filename (const char *filename, char ***pargv, int outp)
     return filename;
 }
 
+
 static void
-mergeParamFile (xmlDocPtr docp UNUSED, xmlDocPtr sourcedoc UNUSED)
+yangFixNsNodes (xmlDocPtr docp, xmlNodePtr nodep, xmlNsPtr newp, xmlNsPtr oldp)
+{
+    xmlAttrPtr attrp;
+    xmlNodePtr childp;
+
+    for (attrp = nodep->properties; attrp; attrp = attrp->next) {
+	if (attrp->ns == oldp)
+	    attrp->ns = newp;
+    }
+
+    for (childp = nodep->children; childp; childp = childp->next) {
+	if (childp->ns == oldp)
+	    childp->ns = newp;
+	if (childp->type == XML_ELEMENT_NODE)
+	    yangFixNsNodes(docp, childp, newp, oldp);
+    }
+}
+
+static xmlNsPtr
+yangFindNs (xmlNodePtr nodep, xmlNsPtr match)
+{
+    xmlNsPtr nsp;
+
+    for (nsp = nodep->nsDef; nsp; nsp = nsp->next) {
+	if (nsp->prefix) {
+	    if (match->prefix == NULL)
+		continue;
+	    if (!xmlStrEqual(nsp->prefix, match->prefix))
+		continue;
+	} else if (match->prefix)
+	    continue;
+
+	if (nsp->href && match->href && xmlStrEqual(nsp->href, match->href))
+	    return nsp;
+    }
+
+    if (nodep->parent)
+	return yangFindNs(nodep->parent, match);
+
+    return NULL;
+}
+
+/*
+ * If we have a namespace that's also defined in a parent, we need
+ * to use the parent's definition.
+ */
+static void
+yangFixMergedNamespaces (xmlDocPtr docp, xmlNodePtr startp, xmlNodePtr nodep)
+{
+    xmlNsPtr nsp, realp, nextp, *prev = &nodep->nsDef;
+
+    for (nsp = nodep->nsDef; nsp; nsp = nextp) {
+	nextp = nsp->next;
+
+	realp = yangFindNs(startp->parent, nsp);
+	if (realp) {
+	    if (nodep->ns == nsp)
+		nodep->ns = realp;
+	    yangFixNsNodes(docp, nodep, realp, nsp);
+	    nsp->next = NULL;
+	    xmlFreeNs(nsp);
+	    *prev = nextp;
+	}
+
+	prev = &nsp->next;
+    }
+}
+
+static void
+yangMergeParamFile (xmlDocPtr docp UNUSED, xmlDocPtr sourcedoc UNUSED)
 {
     slaxLog("handleParams: %p %p", docp, sourcedoc);
 
@@ -83,6 +153,7 @@ mergeParamFile (xmlDocPtr docp UNUSED, xmlDocPtr sourcedoc UNUSED)
     for (nodep = docp->children->children; nodep; nodep = nodep->next) {
 	newp = xmlDocCopyNode(nodep, sourcedoc, 1);
 	xmlAddPrevSibling(insp, newp);
+	yangFixMergedNamespaces(sourcedoc, newp, newp);
     }
 }
 
@@ -102,11 +173,6 @@ do_eval (xmlDocPtr sourcedoc, const char *sourcename, const char *input)
 
     params[i] = NULL;
 
-    source = xsltParseStylesheetDoc(sourcedoc);
-    if (source == NULL || source->errors != 0)
-	errx(1, "%d errors parsing source: '%s'",
-	     source ? source->errors : 1, sourcename);
-
     SLAXDATALIST_FOREACH(dnp, &param_files) {
 	const char *name = dnp->dn_data;
 	FILE *fp = fopen(name, "r");
@@ -115,12 +181,17 @@ do_eval (xmlDocPtr sourcedoc, const char *sourcename, const char *input)
 
 	xmlDocPtr docp = yangLoadParams(name, fp, NULL);
 	if (docp) {
-	    mergeParamFile(docp, sourcedoc);
+	    yangMergeParamFile(docp, sourcedoc);
 	    xmlFreeDoc(docp);
 	}
 
 	fclose(fp);
     }
+
+    source = xsltParseStylesheetDoc(sourcedoc);
+    if (source == NULL || source->errors != 0)
+	errx(1, "%d errors parsing source: '%s'",
+	     source ? source->errors : 1, sourcename);
 
     if (input)
 	indoc = xmlReadFile(input, encoding, options);
