@@ -46,10 +46,6 @@ static slax_data_list_t plist;
 static int nbparams;
 static slax_data_list_t param_files;
 
-static int options = XSLT_PARSE_OPTIONS;
-
-static char *encoding;		/* Desired document encoding */
-
 static int opt_indent = TRUE;	/* Indent the output (pretty print) */
 static int opt_partial;		/* Parse partial contents */
 static int opt_debugger;	/* Invoke the debugger */
@@ -72,100 +68,12 @@ get_filename (const char *filename, char ***pargv, int outp)
     return filename;
 }
 
-
-static void
-yangFixNsNodes (xmlDocPtr docp, xmlNodePtr nodep, xmlNsPtr newp, xmlNsPtr oldp)
-{
-    xmlAttrPtr attrp;
-    xmlNodePtr childp;
-
-    for (attrp = nodep->properties; attrp; attrp = attrp->next) {
-	if (attrp->ns == oldp)
-	    attrp->ns = newp;
-    }
-
-    for (childp = nodep->children; childp; childp = childp->next) {
-	if (childp->ns == oldp)
-	    childp->ns = newp;
-	if (childp->type == XML_ELEMENT_NODE)
-	    yangFixNsNodes(docp, childp, newp, oldp);
-    }
-}
-
-static xmlNsPtr
-yangFindNs (xmlNodePtr nodep, xmlNsPtr match)
-{
-    xmlNsPtr nsp;
-
-    for (nsp = nodep->nsDef; nsp; nsp = nsp->next) {
-	if (nsp->prefix) {
-	    if (match->prefix == NULL)
-		continue;
-	    if (!xmlStrEqual(nsp->prefix, match->prefix))
-		continue;
-	} else if (match->prefix)
-	    continue;
-
-	if (nsp->href && match->href && xmlStrEqual(nsp->href, match->href))
-	    return nsp;
-    }
-
-    if (nodep->parent)
-	return yangFindNs(nodep->parent, match);
-
-    return NULL;
-}
-
-/*
- * If we have a namespace that's also defined in a parent, we need
- * to use the parent's definition.
- */
-static void
-yangFixMergedNamespaces (xmlDocPtr docp, xmlNodePtr startp, xmlNodePtr nodep)
-{
-    xmlNsPtr nsp, realp, nextp, *prev = &nodep->nsDef;
-
-    for (nsp = nodep->nsDef; nsp; nsp = nextp) {
-	nextp = nsp->next;
-
-	realp = yangFindNs(startp->parent, nsp);
-	if (realp) {
-	    if (nodep->ns == nsp)
-		nodep->ns = realp;
-	    yangFixNsNodes(docp, nodep, realp, nsp);
-	    nsp->next = NULL;
-	    xmlFreeNs(nsp);
-	    *prev = nextp;
-	}
-
-	prev = &nsp->next;
-    }
-}
-
-static void
-yangMergeParamFile (xmlDocPtr docp UNUSED, xmlDocPtr sourcedoc UNUSED)
-{
-    slaxLog("handleParams: %p %p", docp, sourcedoc);
-
-    xmlNodePtr insp = sourcedoc->children->children;
-    xmlNodePtr nodep, newp;
-
-    for (nodep = docp->children->children; nodep; nodep = nodep->next) {
-	newp = xmlDocCopyNode(nodep, sourcedoc, 1);
-	xmlAddPrevSibling(insp, newp);
-	yangFixMergedNamespaces(sourcedoc, newp, newp);
-    }
-}
-
 static int
 do_eval (xmlDocPtr sourcedoc, const char *sourcename, const char *input)
 {
-    xmlDocPtr indoc;
-    xmlDocPtr res = NULL;
-    xsltStylesheetPtr source;
-    const char **params = alloca(nbparams * 2 * sizeof(*params) + 1);
     slax_data_node_t *dnp;
     int i = 0;
+    const char **params = alloca(nbparams * 2 * sizeof(*params) + 1);
 
     SLAXDATALIST_FOREACH(dnp, &plist) {
 	params[i++] = dnp->dn_data;
@@ -173,60 +81,13 @@ do_eval (xmlDocPtr sourcedoc, const char *sourcename, const char *input)
 
     params[i] = NULL;
 
-    SLAXDATALIST_FOREACH(dnp, &param_files) {
-	const char *name = dnp->dn_data;
-	FILE *fp = fopen(name, "r");
-	if (fp == NULL)
-	    err(1, "cannot open parameter file '%s'", name);
-
-	xmlDocPtr docp = yangLoadParams(name, fp, NULL);
-	if (docp) {
-	    yangMergeParamFile(docp, sourcedoc);
-	    xmlFreeDoc(docp);
-	}
-
-	fclose(fp);
-    }
-
-    source = xsltParseStylesheetDoc(sourcedoc);
-    if (source == NULL || source->errors != 0)
-	errx(1, "%d errors parsing source: '%s'",
-	     source ? source->errors : 1, sourcename);
-
-    if (input)
-	indoc = xmlReadFile(input, encoding, options);
-    else
-	indoc = yangFeaturesBuildInputDoc();
-
-    if (indoc == NULL)
-	errx(1, "unable to parse: '%s'", input);
-
+    unsigned flags = 0;
     if (opt_indent)
-	source->indent = 1;
-
-    if (opt_debugger) {
-	slaxDebugInit();
-	slaxDebugSetStylesheet(source);
-	res = slaxDebugApplyStylesheet(sourcename, source,
-				 slaxFilenameIsStd(input) ? NULL : input,
-				 indoc, params);
-    } else {
-	res = xsltApplyStylesheet(source, indoc, params);
-    }
-
-    if (res) {
-	FILE *outfile = stdout;
-
-	xsltSaveResultToFile(outfile, res, source);
-	yangWriteDoc((slaxWriterFunc_t) fprintf, outfile, res, 0);
-
-	xmlFreeDoc(res);
-    }
-
-    xmlFreeDoc(indoc);
-    xsltFreeStylesheet(source);
-
-    return 0;
+	flags |= YEF_INDENT;
+    if (opt_debugger)
+	flags |= YEF_DEBUGGER;
+    return yangEvalDoc(sourcedoc, sourcename, input,
+		       params, &param_files, flags);
 }
 
 static int
@@ -234,7 +95,7 @@ do_post (const char *name, const char *output UNUSED,
 	 const char *input, char **argv)
 {
     name = get_filename(name, &argv, -1);
-    
+
     xmlDocPtr docp = xmlReadFile(name, NULL, XSLT_PARSE_OPTIONS);
     if (docp == NULL) {
 	errx(1, "cannot parse file: '%s'", name);
