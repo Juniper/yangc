@@ -29,4 +29,13 @@ int
 yangWriteDoc (slaxWriterFunc_t func, void *data,
 	      struct _xmlDoc *docp, unsigned flags);
 
+struct slax_data_list_s;	/* Forward decl */
+int
+yangEvalDoc (xmlDocPtr sourcedoc, const char *sourcename, const char *input,
+	     const char **params, struct slax_data_list_s *param_files,
+	     unsigned flags);
+/* Flags for yangEvalDoc */
+#define YEF_INDENT	(1<<0)	/* Indent output */
+#define YEF_DEBUGGER	(1<<1)	/* Invoke debugger (sdb) */
+
 #endif /* LIBYANG_YANG_H */
