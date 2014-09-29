@@ -209,6 +209,17 @@ yangCheckChildren (slax_data_t *sdp, yang_stmt_t *ysp, const char *name)
     yang_stmt_t *parent = ypsp ? ypsp->yps_stmt : NULL;
 
     slaxLog("check child: %s", name);
+
+    /*
+     * If we're under a 'template', then we can't know what our eventual
+     * parent will be.  Skip this check.
+     */
+    xmlNodePtr nodep = sdp->sd_ctxt->node->parent;
+    if (nodep && nodep->type == XML_ELEMENT_NODE) {
+	if (slaxNodeIsXsl(nodep, ELT_TEMPLATE))
+	    return 0;
+    }
+
     if (ysp && parent && parent->ys_children) {
 	yang_relative_t *yrp = yangFindRelative(parent->ys_children, ysp);
 	if (yrp == NULL) {
@@ -354,14 +365,7 @@ yangStmtSetArgument (slax_data_t *sdp, slax_string_t *value,
 
     if (as_element) {
 	slaxElementOpen(sdp, argument);
-
-	/* XXX need to convert token chain to string */
-	xmlNodePtr textp = xmlNewText((const xmlChar *) value->ss_token);
-	if (textp == NULL)
-	    fprintf(stderr, "could not make node: text\n");
-	else
-	    slaxAddChild(sdp, NULL, textp);
-
+	slaxElementXPath(sdp, value, as_element, FALSE);
 	slaxElementClose(sdp);
 
     } else {
