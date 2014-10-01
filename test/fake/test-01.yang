@@ -8,10 +8,21 @@ module foo {
     }
     contact "Phil Shafer";
 
+    template test ($help) {
+        help $help;
+    }
+
+    extension foo:fred {
+	argument "fred-is-cool";
+	parents "leaf";
+    }
+
     augment protocols {
 	container my-stuff {
+	    call test($help = "my-stuff help");
 	    leaf test {
-		help "test help";
+	        f:fred "this is working";
+		description "one string" + "; another string";
 		type int {
 		    range $test-min .. $test-max;
 		}
