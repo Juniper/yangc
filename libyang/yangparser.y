@@ -246,6 +246,8 @@
  * YANG statement argument types.  These allow the statement to
  * tell the parser what should appear and how flexible to be.
  */
+%token Y_FIRST			/* Marker for the first YANG token */
+
 %token Y_BOOLEAN		/* true/false boolean */
 %token Y_DEVIATE		/* Deviate options */
 %token Y_IDENT			/* Identifier */
