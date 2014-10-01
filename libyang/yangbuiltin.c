@@ -60,7 +60,7 @@ yangStmtIsTop (slax_data_t *sdp UNUSED)
 }
 
 static int
-yangStmtSetTopNamespaces (slax_data_t *sdp, yang_data_t *ydp)
+yangStmtCloseNamespace (YANG_STMT_CLOSE_ARGS)
 {
     yang_stmt_t *pref_stmtp, *ns_stmtp;
     xmlNodePtr parent = sdp->sd_ctxt->node->parent;
@@ -78,7 +78,9 @@ yangStmtSetTopNamespaces (slax_data_t *sdp, yang_data_t *ydp)
     if (namespace == NULL)	/* Can't do anything without it */
 	return 0;
 
-    char *prefix = yangStmtGetValue(sdp, parent, pref_stmtp);
+    xmlNodePtr ns_nodep = yangStmtGetNode(sdp, parent, ns_stmtp);
+    char *prefix = ns_nodep
+	? yangStmtGetValue(sdp, ns_nodep, pref_stmtp) : NULL;
 
     slaxLog("yang: prefix '%s' for namespace '%s'",
 	    prefix ?: "", namespace);
@@ -114,14 +116,6 @@ yangStmtSetTopNamespaces (slax_data_t *sdp, yang_data_t *ydp)
     xmlFree(namespace);
 
     return 0;
-}
-
-static int
-yangStmtSetArgPrefixOrNamespace (YANG_STMT_SETARG_ARGS)
-{
-    slaxLog("yang: arg: prefix %p %p", sdp, ysp);
-
-    return yangStmtSetTopNamespaces(sdp, ydp);
 }
 
 static int
@@ -169,6 +163,129 @@ yangStmtCloseType (YANG_STMT_CLOSE_ARGS)
     return 0;
 }
 
+static char *
+yangStmtValue (slax_data_t *sdp, const char *sname)
+{
+    yang_stmt_t *stmtp = yangStmtFind(NULL, sname);
+    if (stmtp == NULL)
+	return NULL;
+
+    return yangStmtGetValue(sdp, sdp->sd_ctxt->node, stmtp);
+}
+
+static const char *yangTypeNames[] = {
+    "boolean",			/* Y_BOOLEAN */
+    "deviate", 			/* Y_DEVIATE */
+    "ident",			/* Y_IDENT */
+    "none",			/* Y_NONE */
+    "number",			/* Y_NUMBER */
+    "ordered",			/* Y_ORDERED */
+    "range",			/* Y_RANGE */
+    "regex",			/* Y_REGEX */
+    "status",			/* Y_STATUS */
+    "string",			/* Y_STRING */
+    "target",			/* Y_TARGET */
+    "xpath",			/* Y_XPATH */
+    NULL
+};
+
+static int
+yangStmtGetType (yang_data_t *ydp UNUSED, slax_data_t *sdp)
+{
+    char *value = yangStmtValue(sdp, YS_TYPE);
+    if (value) {
+	int i;
+	for (i = 0; yangTypeNames[i]; i++) {
+	    if (streq(yangTypeNames[i], value))
+		return i + Y_FIRST + 1;
+	}
+    }
+
+    return Y_STRING;
+}
+
+static int
+yangStmtTest (yang_data_t *ydp UNUSED, slax_data_t *sdp,
+	      const char *sname)
+{
+    char *value = yangStmtValue(sdp, sname);
+    if (value == NULL)
+	return 0;
+
+    int rc = 0;
+    if (streq(value, "yes") || streq(value, "true") || streq(value, "1"))
+	rc = 1;
+
+    xmlFree(value);
+    return rc;
+}
+
+static yang_relative_t *
+yangStmtRelative (yang_data_t *ydp UNUSED, slax_data_t *sdp,
+		  const char *sname)
+{
+    char *value = yangStmtValue(sdp, sname);
+    if (value == NULL)
+	return NULL;
+
+    char *cp, *sp, *np;
+    int count = 1;
+    for (cp = value; cp && *cp; ) {
+	cp += strspn(cp, " \t\n\r");
+	if (*cp == '\0')
+	    break;
+	cp += strcspn(cp, " \t\n\r");
+	count += 1;
+    }
+
+    yang_relative_t *yrp, *results;
+    int yr_size = count * sizeof(yang_relative_t);
+
+    results = xmlMalloc(yr_size);
+    if (results == NULL) {
+	xmlFree(value);
+	return NULL;
+    }
+
+    bzero(results, yr_size);
+
+    for (cp = value, yrp = results; cp && *cp; yrp++) {
+	cp += strspn(cp, " \t\n\r");
+	if (*cp == '\0')
+	    break;
+
+	sp = cp; /* Hold on to the start of the token */
+	cp += strcspn(cp, " \t\n\r");
+	if (*cp != '\0')
+	    *cp++ = '\0';
+
+	np = strchr(sp, ':');
+	if (np) {
+	    *np++ = '\0';
+
+	    xmlNsPtr nsp = xmlSearchNs(sdp->sd_docp, sdp->sd_ctxt->node,
+				       (const xmlChar *) sp);
+	    if (nsp && nsp->href)
+		yrp->yr_namespace = (char *) xmlStrdup(nsp->href);
+	    else
+		slaxError("unknown prefix '%s'", sp);
+
+	    sp = np;
+	}
+
+	yrp->yr_name = xmlStrdup2(sp); /* Now that we have an end, dup it */
+    }
+
+    if (yangStmtTest(ydp, sdp, YS_MULTIPLE))
+	yrp->yr_flags |= YRF_MULTIPLE;
+
+    if (yangStmtTest(ydp, sdp, YS_MANDATORY))
+	yrp->yr_flags |= YRF_MANDATORY;
+
+    xmlFree(value);
+    return results;
+}
+
 static int
 yangStmtCloseExtension (YANG_STMT_CLOSE_ARGS)
 {
@@ -180,7 +297,42 @@ yangStmtCloseExtension (YANG_STMT_CLOSE_ARGS)
     slaxLog("yang: extension: %p %p '%s' -> '%s'",
 	    sdp, ysp, name, element ?: "");
 
-    xmlFreeAndEasy(name);
+    if (name) {
+	yang_stmt_t *newp = xmlMalloc(sizeof(*newp));
+	if (newp) {
+	    bzero(newp, sizeof(*newp));
+
+	    char *cp = strchr(name, ':');
+	    if (cp) {
+		*cp++ = '\0';
+
+		xmlNsPtr nsp = xmlSearchNs(sdp->sd_docp, sdp->sd_ctxt->node,
+					   (const xmlChar *) name);
+		if (nsp && nsp->href)
+		    newp->ys_namespace = (char *) xmlStrdup(nsp->href);
+		else
+		    slaxError("unknown prefix '%s'", name);
+
+	    } else
+		cp = name;
+
+	    newp->ys_name = xmlStrdup2(cp);
+	    if (newp->ys_namespace == NULL)
+		newp->ys_namespace = xmlStrdup2((const char *) ydp->yd_nsp->href);
+	    if (element)
+		newp->ys_argument = xmlStrdup2(element);
+
+	    newp->ys_parents = yangStmtRelative(ydp, sdp, YS_PARENTS);
+	    newp->ys_children = yangStmtRelative(ydp, sdp, YS_CHILDREN);
+
+	    newp->ys_type = yangStmtGetType(ydp, sdp);
+
+	    yangStmtAdd(newp, NULL, 1);
+	}
+
+	xmlFree(name);
+    }
+
     xmlFreeAndEasy(element);
 
     return 0;
@@ -947,7 +1099,7 @@ static yang_stmt_t yangStmtBuiltin[] = {
     .ys_flags = 0,
     .ys_type = Y_STRING,
     .ys_children = ys_namespace_children,
-    .ys_setarg = yangStmtSetArgPrefixOrNamespace,
+    .ys_close = yangStmtCloseNamespace,
     },
 
     { /* "notification" statement */
@@ -1007,7 +1159,6 @@ static yang_stmt_t yangStmtBuiltin[] = {
     .ys_argument = YS_VALUE,
     .ys_flags = 0,
     .ys_type = Y_IDENT,
-    .ys_setarg = yangStmtSetArgPrefixOrNamespace,
     },
 
     { /* "presence" statement */
