@@ -155,6 +155,13 @@ yangConcatValues (slax_data_t *sdp, slax_string_t *one,
 
 void yangStmtInitBuiltin (void);
 
+xmlNodePtr
+yangStmtGetNodeName (slax_data_t *sdp, xmlNodePtr nodep,
+		     const char *namespace, const char *name);
+
+xmlNodePtr
+yangStmtGetNode (slax_data_t *sdp, xmlNodePtr nodep, yang_stmt_t *ysp);
+
 char *
 yangStmtGetValueName (slax_data_t *sdp, xmlNodePtr nodep,
 		      const char *namespace, const char *name,
