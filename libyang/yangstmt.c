@@ -73,7 +73,8 @@ yangStmtAdd (yang_stmt_t *ysp, const char *namespace, int count)
 
     for ( ; count > 0 && ysp->ys_name; count--, ysp++) {
 	ysp->ys_id = ys_id++;
-	ysp->ys_namespace = namespace;
+	if (namespace)
+	    ysp->ys_namespace = namespace;
 
 	if (ysp->ys_parents) {
 	    yang_relative_t *yrp;
@@ -118,10 +119,9 @@ yangStmtFindNs (yang_data_t *ydp, yang_stmt_t *ysp)
     return NULL;
 }
 
-char *
-yangStmtGetValueName (slax_data_t *sdp, xmlNodePtr nodep,
-		      const char *namespace, const char *name,
-		      const char *argument, unsigned flags)
+xmlNodePtr
+yangStmtGetNodeName (slax_data_t *sdp, xmlNodePtr nodep,
+		     const char *namespace, const char *name)
 {
     if (nodep == NULL) {
 	nodep = sdp->sd_ctxt->node;
@@ -134,33 +134,56 @@ yangStmtGetValueName (slax_data_t *sdp, xmlNodePtr nodep,
 	    continue;
 	
 	if (namespace) {
-	    if (nodep->ns == NULL
-		|| !streq(namespace, (const char *) nodep->ns->href))
-		continue;
-	}
-
-	if (!streq(name, (const char *) nodep->name))
-	    continue;
-
-	if (flags & YSF_YINELEMENT) {
-	    xmlNodePtr childp;
-	    for (childp = nodep->children; childp; childp = childp->next) {
-		if (childp->type != XML_ELEMENT_NODE
-		    	|| childp->children == NULL)
+	    if (nodep->ns) {
+		if (!streq(namespace, (const char *) nodep->ns->href))
 		    continue;
-		if (!streq(argument, (const char *) childp->name))
-		    continue;
-		if (childp->children->type == XML_TEXT_NODE)
-		    return (char *) xmlStrdup(childp->children->content);
-		break;
+	    } else {
+		/* No namespace on the input; ignore for now */
 	    }
-
-	} else {
-	    return slaxGetAttrib(nodep, argument);
 	}
+
+	if (streq(name, (const char *) nodep->name))
+	    return nodep;
     }
 
     return NULL;
+}
+
+xmlNodePtr
+yangStmtGetNode (slax_data_t *sdp, xmlNodePtr nodep, yang_stmt_t *ysp)
+{
+    if (ysp == NULL)
+	return NULL;
+
+    return yangStmtGetNodeName(sdp, nodep, ysp->ys_namespace, ysp->ys_name);
+}
+
+char *
+yangStmtGetValueName (slax_data_t *sdp, xmlNodePtr nodep,
+		      const char *namespace, const char *name,
+		      const char *argument, unsigned flags)
+{
+    nodep = yangStmtGetNodeName(sdp, nodep, namespace, name);
+    if (nodep == NULL)
+	return NULL;
+
+    if (flags & YSF_YINELEMENT) {
+	xmlNodePtr childp;
+	for (childp = nodep->children; childp; childp = childp->next) {
+	    if (childp->type != XML_ELEMENT_NODE
+		|| childp->children == NULL)
+		continue;
+	    if (!streq(argument, (const char *) childp->name))
+		continue;
+	    if (childp->children->type == XML_TEXT_NODE)
+		return (char *) xmlStrdup(childp->children->content);
+	    break;
+	}
+
+	return NULL;
+    }
+
+    return slaxGetAttrib(nodep, argument);
 }
 
 char *
@@ -243,25 +266,44 @@ yangStmtOpen (slax_data_t *sdp, const char *raw_name)
 {
     yang_data_t *ydp = yangData(sdp);
     unsigned flags = 0;
-    char *local_name, *ns = NULL;
-    const char *name = raw_name;
+    char *local_name, *pref = NULL;
+    const char *name = raw_name, *namespace = NULL;
 
     local_name = strchr(name, ':');
     if (local_name) {
 	size_t len = local_name - name;
 	if (len) {	    
-	    ns = alloca(len + 1);
-	    memcpy(ns, name, len);
-	    ns[len] = '\0';
+	    pref = alloca(len + 1);
+	    memcpy(pref, name, len);
+	    pref[len] = '\0';
 	}
 	name = local_name + 1;
     }
 
-    slaxLog("yang: open: %s (%s:%s)", raw_name, ns ?: "--", name);
+    slaxLog("yang: open: %s (%s:%s)", raw_name, pref ?: "--", name);
  
     slaxElementOpen(sdp, name);
+    xmlNodePtr nodep = sdp->sd_ctxt->node;
 
-    yang_stmt_t *ysp = yangStmtFind(ns, name);
+    /*
+     * The element was opened in the default namespace, which
+     * isn't what we want.  If there's a prefix attached, find
+     * the namespace; otherwise it goes in the 'yin' namespace.
+     */
+    if (pref) {
+	xmlNsPtr ns = slaxFindNs(sdp, nodep, pref, strlen(pref));
+	if (ns == NULL) {
+	    sdp->sd_errors += 1;
+	    xmlParserError(sdp->sd_ctxt, "unknown prefix '%s' in %s",
+			   pref, raw_name);
+	} else {
+	    nodep->ns = ns;
+	    namespace = (const char *) ns->href;
+	}
+    } else
+	nodep->ns = ydp->yd_nsp;
+
+    yang_stmt_t *ysp = yangStmtFind(namespace, name);
     if (ysp) {
 	sdp->sd_ctxt->node->ns = yangStmtFindNs(ydp, ysp);
 
