@@ -1,0 +1,43 @@
+module foo {
+    param $test-default = 15;
+    param $test-min = 1;
+    param $test-max = 100;
+
+    namespace "http://foo.example.net" {
+        prefix foo;
+    }
+    contact "Phil Shafer";
+
+    template test ($help) {
+        help $help;
+    }
+
+    extension foo:fred {
+	argument "fred-is-cool";
+	parents "leaf";
+    }
+
+    augment protocols {
+	container my-stuff {
+	    call test($help = "my-stuff help");
+	    leaf test {
+	        f:fred "this is working";
+		description "one string" + "; another string";
+		type int {
+		    range $test-min .. $test-max;
+		}
+		default $test-default;
+		must some-function("test");
+	    }
+
+	    leaf-list funky {
+		help "Funky stuff";
+		type string;
+	    }
+	    leaf-list funky-too {
+		description "More funky stuff";
+		type string;
+	    }
+        }
+    }
+}

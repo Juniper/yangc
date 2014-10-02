@@ -1,0 +1,10 @@
+module goo {
+    namespace "http://example.com/goo";
+    prefix "goo";
+
+    grouping contents {
+        leaf goo-leaf {
+            type int;
+        }
+    }
+}

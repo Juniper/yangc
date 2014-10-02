@@ -1,0 +1,1076 @@
+submodule platform-inc.yang {
+    /*
+     * Copyright (c) 1998-2008,2014, Juniper Networks, Inc.
+     * All rights reserved.
+     *
+     * Definitions related to particular sets of platforms.
+     */
+
+    param $OLIVE = olive;
+
+    /*
+     * JCS SCE products
+     */
+    param $JCS_SCE = sce;
+
+    param $PRODUCTS_SUPPORTING_HIERARCHICAL_TCP =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES 
+        $MX_SERIES $JSSG_SERIES $JCS_SCE;
+
+    param $PRODUCTS_SUPPORTING_HIERARCHICAL_TCP_SRX_3X_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES
+        $MX_SERIES srx5800 srx5600;
+
+    param $PRODUCTS_SUPPORTING_EXCESS_SHARE_INTF_RESTRICTION =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES
+        $MX_SERIES $JCS_SCE;
+
+    param $PRODUCTS_SUPPORTING_PER_PRIORITY_SHAPING =
+        olive $MX_SERIES;
+
+    param $PRODUCTS_SUPPORTING_TUNNEL_SERVICES =
+        $MX_SERIES m7i m10i m120 m320 $T_CASSIS_SERIES;
+
+    param $PRODUCTS_SUPPORTING_SANGRIA_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES
+        $MX_SERIES $JSSG_SERIES $JCS_SCE srx5800 srx5600;
+
+    param $PRODUCTS_SUPPORTING_TUNNEL_SERVICES =
+        $MX_SERIES m7i m10i m120 m320 $T_CASSIS_SERIES;
+
+    param $PRODUCTS_SUPPORTING_TUNNEL_SERVICES_BW =
+        $MX_SERIES $T_CASSIS_SERIES;
+
+
+    /*        
+     * X-series products
+     */
+    param $MX80_SERIES = mx5-t mx10-t mx40-t mx80 mx80-t mx80-48t mx80-p;
+    param $MX80_SERIES_NO_EQ = mx80-48t;;
+    param $MX_SERIES = mx960 mx480 mx240 $MX80_SERIES;
+    param $MX_SERIES_DUAL_RE = mx960 mx480 mx240;
+    param $MX_SERIES_FABRIC_SUPPORT = mx960 mx480 mx240;
+    param $MX_SERIES_TAZ = mx5-t mx10-t mx40-t mx80 mx80-t mx80-48t mx80-p;
+    param $MX_SERIES_NONFABRIC = $MX_SERIES_TAZ;
+    param $MX_SERIES_MX80_EXCLUDE = mx960 mx480 mx240;
+    param $MX_SERIES_CLOCK_SUPPORT =
+        mx960 mx480 mx240 mx80-t mx80 mx40-t mx10-t mx5-t mx80-p;
+
+    param $ACX_SERIES = acx1000 acx2000 acx4000;
+    param $ACX_FORTIUS_FM = acx1000 acx4000;
+    param $ACX_FORTIUS_FG = acx1000 acx2000;
+    param $ACX_FORTIUS_GM = acx2000 acx4000;
+
+    param $MX_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $EX_SERIES olive $JCS_SCE $FX_SERIES
+        $SNG_SERIES;
+    param $MX80_EXCLUDE = $MX_SERIES_EXCLUDE $MX_SERIES_MX80_EXCLUDE;
+
+    /*
+     * T_SERIES/TX_SERIES
+     */
+    param $T_SERIES = t320 t640 tx4 txp;
+    param $TX_SERIES = tx4 txp;
+
+    /*
+     * Sangria products
+     */
+    param $SNG_SERIES = ptx5000 ptx9000;
+
+    /*
+     * T_SERIES routers that support cassis-based fpcs
+     */
+    param $T_CASSIS_SERIES = t640;
+
+    /*
+     * Macro to exclude T_SERIES products
+     */
+    param $T_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320
+        $MX_SERIES $J_SERIES $JSSG_SERIES #EX_SERIES olive $JCS_SCE
+        $FX_SERIES_DUAL_RE;
+
+    /*
+     * Absolut products
+     */
+    param $ABSOLUT_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 t320 t640 tx4
+        $MX_SERIES $J_SERIES $JSSG_SERIES $EX_SERIES olive $JCS_SCE $FX_SERIES
+        $SNG_SERIES;
+
+    /*
+     * Macro to exclude Sangria Series products
+     */
+    param $SNG_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 t320 t640 tx4
+        $MX_SERIES $J_SERIES $JSSG_SERIES $EX_SERIES olive $JCS_SCE $FX_SERIES
+        $T_SERIES $ACX_SERIES;
+
+    /*
+     * Macro to exclude ACX/Sangria Series products
+     */
+    param $SNG_ACX_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 t320 t640 tx4
+        $MX_SERIES $J_SERIES $JSSG_SERIES $EX_SERIES olive $JCS_SCE $FX_SERIES
+        $T_SERIES;
+
+    /*
+     * Platforms excluding JSRXNLE platforms
+     */  
+    param $J_SERIES_EXCLUDE_JSRXNLE =
+        $J_SERIES_NON_USP jsr2300 jsr4300 jsr6300 jsr2320 jsr2350
+        jsr4350 jsr6350 vjx1000;
+
+    param $EX_SERIES_JSRXNLE_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_NON_USP $J_SERIES_EXCLUDE_JSRXNLE $JSSG_SERIES $MX_SERIES
+        olive $JCS_SCE $FX_SERIES $SNG_SERIES;
+
+    param $SRX240_SERIES =
+        srx240b srx240h srx240h-poe srx240h-p-m srx240h-dc;
+
+    /*
+     * M & T series products
+     */
+    param $PRODUCT_M_AND_T_SERIES =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320
+        $T_SERIES $MX_SERIES $ACX_SERIES;
+
+    param $PRODUCT_M_AND_T_SERIES_MX80_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320
+        $T_SERIES $MX_SERIES_MX80_EXCLUDE;
+
+    /*
+     * Jsrxnle products
+     */        
+    param $JSRXNLE_SRX_1XX =
+        srx100b srx100h
+        srx110b-va srx110h-va srx110b-vb srx110h-vb
+        srx110b-wl srx110h-wl
+        srx110h-va-wl srx110h-vb-wl;
+
+    param $JSRXNLE_SRX_2XX =
+        srx210b srx210h srx210h-poe srx210h-p-m
+        srx210be srx210he srx210he-poe srx210he-p-m
+        srx220h srx220h-poe srx220h-p-m
+        srx240b srx240h srx240h-poe srx240h-p-m srx240h-dc;
+
+    param $SRXSME_SRE6 = srx630 srx650 srx680;
+
+    /*
+     * SRX branch medium range products
+     */
+    param $SRXMR = srx550 srx630 srx650 srx680;
+
+    param $SRXSME_SRX_110 =
+        srx110b-va srx110h-va srx110b-vb srx110h-vb
+        srx110b-wl srx110h-wl
+        srx110h-va-wl srx110h-vb-wl;
+
+    param $PRODUCTS_SUPPORTING_EAV_USP =
+        srx210h srx210h-poe srx210h-p-m
+        srx210he srx210he-poe srx210he-p-m
+        srx220h srx220h-poe srx220h-p-m
+        srx240h srx240h-poe srx240h-p-m
+        srx240h-dc srx550 srx630 srx650 srx680
+        ln1000-v;
+                     
+    param $PRODUCTS_SUPPORTING_UTM_USP =
+        srx100h srx110h-va srx110h-vb srx110h-wl srx110h-va-wl srx110h-vb-wl
+        vjx1000 jsr4350 jsr6350 jsr2350 jsr2320 $PRODUCTS_SUPPORTING_EAV_USP;
+
+    param $PRODUCTS_SUPPORTING_FPGA_UPGRADE =
+        srx240b srx240h srx240h-poe srx240h-p-m
+        srx240h-dc $SRXSME_SRX_110;
+
+    /*
+     * DCF Products
+     */
+    param $QFX_WA_SA = qfx3600-16qs;
+    param $QFX_WA_EDGE = qfx3600-16q;
+    param $QFX_WA_IC = qfx3600-i;
+    param $QFX_WA_SERIES = $QFX_WA_SA $QFX_WA_EDGE $QFX_WA_IC;
+    param $FX_OLIVE = dc_olive;
+    param $FX_SERIES_SI_IC = qfx3008-i;
+    param $FX_SERIES_HW =
+        fx1600_48 fx2160_48 qfx3500 qfx3500s
+        $FX_SERIES_SI_IC fx-jvre $QFX_WA_SERIES;
+
+    param $FX_SERIES = dc_olive $FX_SERIES_HW;
+    param $FX_SERIES_SI_HW =
+        fx-jvre qfx3500 qfx3500s $FX_SERIES_SI_IC $QFX_WA_SERIES;
+
+    param $FX_SERIES_SI = dc_olive $FX_SERIES_SI_HW;
+
+    param $FX_SERIES_WS_HW = fx-jvre fx2160_48;
+
+    param $FX_SERIES_WS = dc_olive $FX_SERIES_WS_HW;
+
+    /*
+     * Top of the Racks in DCF
+     */
+    param $FX_TOR_HW = fx1600_48 fx2160_48 qfx3500 qfx3500s $QFX_WA_SERIES;
+    param $FX_SERIES_STANDALONE = qfx3500s $QFX_WA_SA;
+    param $FX_SERIES_WA = $QFX_WA_SERIES;
+    param $FX_SERIES_LA_PA = qfx3500 qfx3500s;
+    param $QFX_FC_ENABLED_PRODUCTS =
+        dc_olive qfx3500 qfx3500s fx-jvre qfx3000 qfx5000 fx2160_48;
+    param $FX_TOR = dc_olive $FX_TOR_HW;
+
+    /*
+     * FX TORs without standalone TORs
+     */
+    param $FX_TOR_DCF = qfx3500 fx2160_48 dc_olive $QFX_WA_EDGE $QFX_WA_IC;
+
+    /*
+     * DCF products with dual RE
+     */
+    param $FX_SERIES_DUAL_RE = $FX_SERIES_SI_IC;
+
+    /*
+     * DCF products with dual root partitioning RE
+     */
+    param $FX_SERIES_DUAL_ROOT_RE = $FX_TOR_HW $FX_SERIES_DUAL_RE;
+
+    /*
+     * DCF JVRE products
+     */
+    param $FX_SERIES_JVRE = fx-jvre;
+
+    /*
+     * FX products without standalone TORs
+     */
+    param $FX_SERIES_DCF = $FX_TOR_DCF $FX_SERIES_JVRE $FX_SERIES_DUAL_RE;
+
+    /*
+     * ESR series product
+     */
+    param $ESR_SERIES = ln1000-v;
+
+    param $JSRXNLE = $JSRXNLE_SRX_1XX $JSRXNLE_SRX_2XX $SRXMR $ESR_SERIES;
+    param $JSRXNLE_EXCLUDE_ESR = $JSRXNLE_SRX_1XX $JSRXNLE_SRX_2XX $SRXMR;
+
+    /*
+     * J-series products
+     */
+    param $J_SERIES_NON_USP = j2300 j4300 j6300 j2320 j2350 j4350 j6350;
+    param $J_SERIES_USP =
+        jsr2300 jsr4300 jsr6300 jsr2320 jsr2350 jsr4350 jsr6350
+        $JSRXNLE vjx1000;
+    param $J_SERIES_JSR =
+        jsr2300 jsr4300 jsr6300 jsr2320 jsr2350 jsr4350 jsr6350 vjx1000;
+    param $J_SERIES = $J_SERIES_NON_USP $J_SERIES_USP;
+    param $J_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $JSSG_SERIES $EX_SERIES
+        olive $JCS_SCE $FX_SERIES $ACX_SERIES $SNG_SERIES;
+
+    param $J_SERIES_EX32x42_NON_USP_EXCLUDE =
+        $J_SERIES_AND_EX_SERIES_EXCLUDE $J_SERIES_USP $EX_SERIES_CHAS
+        $EX_XRE $FX_SERIES_DUAL_RE;
+
+    param $J_SERIES_NON_USP_EXCLUDE = $J_SERIES_EXCLUDE $J_SERIES_USP;
+    param $J_SERIES_USP_EXCLUDE = $J_SERIES_EXCLUDE $J_SERIES_NON_USP;
+
+    param $J_SERIES_AND_EX_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $JSSG_SERIES olive
+        $JCS_SCE $FX_SERIES $SNG_SERIES;
+
+    param $J_SERIES_AND_EX_SERIES_AND_FX_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $JSSG_SERIES olive $JCS_SCE;
+    param $J_SERIES_USP_AND_EX_SERIES_EXCLUDE =
+        $J_SERIES_AND_EX_SERIES_EXCLUDE $J_SERIES_NON_USP;
+    param $J_SERIES_AND_EX32x42_SERIES = $J_SERIES $JAVA;
+
+    param $J_SERIES_JSRXNLE_SRX_6XX_EXCLUDE =
+        $J_SERIES_NON_USP $J_SERIES_JSR $JSRXNLE_SRX_2XX;
+    param $J_SERIES_SRX_6XX_EXCLUDE =
+        $J_SERIES_NON_USP $J_SERIES_JSR $JSRXNLE_SRX_2XX $JSRXNLE_SRX_1XX;
+    param $JSRXNLE_SRX_1XX_EXCLUDE = $JSRXNLE_SRX_2XX $SRXMR $ESR_SERIES;
+    param $J_EX_JSSG_SERIES_EXCLUDE =
+        acx1000 acx2000 acx4000
+        $PRODUCT_M_AND_T_SERIES olive $JCS_SCE $SNG_SERIES;
+    param $EX_JSSG_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES olive $JCS_SCE $JSRXNLE_EXCLUDE_ESR $J_SERIES;
+    param $J_AND_JSSG_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $EX_SERIES olive $JCS_SCE $SNG_SERIES;
+    param $SRXSME_PRODUCTS_SUPPORTING_FAN =
+        $JSRXNLE_SRX_2XX $SRXMR $ESR_SERIES;
+
+    /*
+     * JSSG-series products (Australia)
+     */
+    param $JSSG_SERIES =
+        srx5800 srx5600 srx3600 srx3400 srx1400;
+    param $JSSG_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $J_SERIES $EX_SERIES olive $JCS_SCE $FX_SERIES
+        $SNG_SERIES;
+
+    param $JSSG_AND_EX_SERIES_EXCLUDE =
+        $PRODUCT_M_AND_T_SERIES $J_SERIES $FX_SERIES $SNG_SERIES;
+
+    /*
+     * Please, keep it in sync with junos/lib/libjuniper++/platform.cc
+     */
+    param $JDHCPD_SUPPORTING_PRODUCTS =
+        $PRODUCT_M_AND_T_SERIES $EX_PRODUCTS_SUPPORTING_JDHCPD olive
+        $JCS_SCE $JSSG_SERIES $J_SERIES_USP;
+
+    param $JDHCPD_SUPPORTING_PRODUCTS_EXCLUDE_USP =
+        $PRODUCT_M_AND_T_SERIES $EX_PRODUCTS_SUPPORTING_JDHCPD olive $JCS_SCE;
+
+    param $JDHCPD_SUPPORTING_PRODUCTS_EXCLUDE_USP_EX =
+        $PRODUCT_M_AND_T_SERIES olive $JCS_SCE;
+
+    param $JDHCPD_SUPPORTING_PRODUCTS_EXCLUDE_EX =
+        $PRODUCT_M_AND_T_SERIES olive $JCS_SCE $JSSG_SERIES $J_SERIES_USP;
+
+    param $DATABASE_REPLICATION_SUPPORTING_PRODUCTS =
+        $PRODUCT_M_AND_T_SERIES olive $JCS_SCE $JSSG_SERIES
+        $J_SERIES_USP $EX_PRODUCTS_SUPPORTING_JDHCPD;
+
+    /*
+     * MAG-series products
+     */
+    param $MAG_SERIES = mag8600 mag6611 mag6610;
+
+    param $MAG_SERIES_WITH_SLB = mag8600;
+
+    /*
+     * USP / Non USP Platforms
+     */
+    param $USP_PLATFORMS = $J_SERIES_USP $JSSG_SERIES mag8600;
+    param $NON_USP_PLATFORMS =
+        $PRODUCT_M_AND_T_SERIES $J_SERIES_NON_USP $EX_SERIES olive $MX_SERIES
+        $JCS_SCE $FX_SERIES $SNG_SERIES;
+
+/*
+ * Hurricane products
+ */
+    param $EX2200_C_12X = ex2200-c-12p-2g ex2200-c-12t-2g;
+    param $JAVA_EX2200 = 
+        ex2200-c-12p-2g ex2200-c-12t-2g ex2200-24p-4g ex2200-24t-4g
+        ex2200-48p-4g ex2200-48t-4g ex2200-24t-dc-4g;
+    param $JAVA_EX3300 =
+        ex3300-24t ex3300-24p ex3300-48p ex3300-48t ex3300-24t-dc
+        ex3300-48t-bf;
+    param $JAVA_ESPRESSO = ex3200-24t ex3200-24p ex3200-48t ex3200-48p;
+    param $JAVA_LATTE =
+        ex4200-24f ex4200-24t ex4200-24p ex4200-48t ex4200-48p
+        ex4200-48px ex4200-24px;
+    param $JAVA_TSUNAMI = ex4500-40f ex4550-32f ex4550-32t;
+    param $JAVA_KONA = ex4550-32f ex4550-32t;
+    param $JAVA_LATTE_TSUNAMI = $JAVA_LATTE $JAVA_TSUNAMI;
+
+    param $EX_XRE = ex-xre;
+
+    param $PRODUCT_VIRTUAL_CHASSIS =
+        $JAVA_LATTE $JAVA_TSUNAMI $MX_SERIES $EX_XRE $JAVA_EX3300 $JAVA_EX2200;
+    param $EX32x42 = $JAVA_ESPRESSO $JAVA_LATTE;
+    param $JAVA =
+        $JAVA_EX2200 $JAVA_ESPRESSO $JAVA_LATTE $JAVA_TSUNAMI $JAVA_EX3300;
+
+    param $JAVA_PRODUCTS_SUPPORTING_TRICOLOR =
+        $JAVA_EX2200 $JAVA_ESPRESSO $JAVA_LATTE $JAVA_TSUNAMI;
+
+    param $EX_PRODUCTS_SUPPORTING_JDHCPD =
+        $EX82_SERIES $JAVA_LATTE $EX_XRE;
+
+    param $EX82_SERIES = ex8208 ex8216;
+
+    param $EX62_SERIES = ex6210;
+    param $EX_SERIES = $JAVA $EX_SERIES_CHAS $EX_XRE;
+
+    param $EX_SERIES_CHAS = $EX82_SERIES $EX62_SERIES;
+    param $EX_PRODUCTS_NOT_SUPPORTING_MPLS = $JAVA $EX62_SERIES;
+
+    param $EX_SERIES_DUAL_RE =
+        $JAVA_LATTE $EX_SERIES_CHAS $JAVA_TSUNAMI $EX_XRE
+        $JAVA_EX3300 $JAVA_EX2200;
+
+    param $EX4500_EX82_XRE = $JAVA_TSUNAMI $EX82_SERIES $EX_XRE;
+
+    param $EX_FX_SNG_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE $ACX_SERIES;
+    param $EX_FX_ACX_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE $SNG_SERIES;
+    param $EX_FX_ACX_SNG_SERIES_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE;
+
+    param $EX_FX_SERIES_EXCLUDE = $EX_FX_SNG_SERIES_EXCLUDE $SNG_SERIES;
+    param $EX_SERIES_EXCLUDE = $EX_FX_SERIES_EXCLUDE $FX_SERIES;
+    param $EX_ACX_SERIES_EXCLUDE = $EX_FX_ACX_SERIES_EXCLUDE $FX_SERIES;
+    param $FX_SERIES_EXCLUDE = $EX_FX_SERIES_EXCLUDE $EX_SERIES;
+    param $EX82_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JAVA $JCS_SCE $EX_XRE
+        $FX_SERIES $SNG_SERIES;
+    param $EX82_XRE_SRX_6XX_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_SRX_6XX_EXCLUDE $JSSG_SERIES $MX_SERIES olive $JAVA $JCS_SCE
+        $FX_SERIES $SNG_SERIES;
+    
+    param $EX82_SRX_6XX_FX_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_SRX_6XX_EXCLUDE $JSSG_SERIES $MX_SERIES olive $JAVA $JCS_SCE;
+
+    param $EX82_FX_EXCLUDE = EX_FX_SERIES_EXCLUDE $JAVA;
+        
+    param $EX82_JSRXNLE_SRX_6XX_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_JSRXNLE_SRX_6XX_EXCLUDE $JSSG_SERIES $MX_SERIES olive
+        $JAVA $JCS_SCE $FX_SERIES $SNG_SERIES;
+
+    param $EX4500_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE EX32x42 $JAVA_EX2200
+        $EX_SERIES_CHAS $EX_XRE $FX_SERIES $JAVA_EX3300 $SNG_SERIES;
+
+    /*
+     * Certain options are not applicable to java but are used by
+     * caffeine.
+     */
+    param $EX32x42_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $EX_SERIES_CHAS $JCS_SCE
+        $EX_XRE $FX_SERIES $SNG_SERIES;
+
+    param $EX32x42x62_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE EX82_SERIES
+        $EX_XRE $SNG_SERIES;
+
+    param $EX32_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $EX_SERIES_CHAS $JCS_SCE
+        $EX_XRE $FX_SERIES $SNG_SERIES $JAVA_LATTE;
+
+    param $EX32x62_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES $JSSG_SERIES $MX_SERIES olive $JCS_SCE EX82_SERIES
+        $EX_XRE $SNG_SERIES $JAVA_LATTE;
+
+    param $JSRXNLE_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_JSR $J_SERIES_NON_USP $JSSG_SERIES $MX_SERIES olive
+        $EX_SERIES_CHAS $JCS_SCE $JAVA $FX_SERIES $ACX_SERIES $SNG_SERIES;
+
+    param $EX32x42_JSRXNLE_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $J_SERIES_JSR $J_SERIES_NON_USP $JSSG_SERIES $MX_SERIES olive
+        $EX_SERIES_CHAS $JCS_SCE $EX_XRE $FX_SERIES $SNG_SERIES;
+
+    param $EX_XRE_EXCLUDE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 $T_SERIES
+        $MX_SERIES $J_SERIES $JSSG_SERIES $JAVA $EX_SERIES_CHAS olive
+        $JCS_SCE $FX_SERIES $ACX_SERIES $MAG_SERIES $SNG_SERIES;
+
+    /*
+     * EX products that don't support GRE tunneling
+     */
+    param $EX_PRODUCTS_NOT_SUPPORTING_GRE =
+        $JAVA_EX2200 $JAVA_TSUNAMI $JAVA_EX3300 $EX62_SERIES;
+
+    /*
+     * JSeries products that support removable FPCs
+     */
+    param $J_SERIES_NON_FIXED_SLOT =
+        j4300 j6300 j2320 j2350 j4350 j6350
+        jsr4300 jsr6300 jsr2320 jsr2350 jsr4350 jsr6350 vjx1000;
+
+    /*
+     * Products supporting the the Adaptive Services PIC
+     */
+    param $PRODUCTS_SUPPORTING_ASP =
+        m5 m7i m10 m10i m20 m40 m40e m160 olive
+        $J_SERIES_NON_USP t320 t640 m320 m120 $MX_SERIES;
+
+    param $PRODUCTS_SUPPORTING_MONITORING =
+        m5 m10 m20 m40 m40e m160 m7i m10i t640 t320 m320;
+    /*
+     * Products supporting jflow v9
+     */
+    param $PRODUCTS_SUPPORTING_JFLOW_V9 =
+        m40e m20 m7i m10i m120 m320 $MX_SERIES $T_SERIES olive;
+
+    param $PRODUCTS_SUPPORTING_JFLOW_INLINE = $MX_SERIES olive;
+
+    /*
+     * Products supporting the Adaptive Services PIC CoS
+     */
+    param $PRODUCTS_SUPPORTING_ASP_COS =
+        m5 m7i m10 m10i m20 m40 m40e m160 olive
+        t320 t640 m320 m120 $MX_SERIES_MX80_EXCLUDE;
+
+    /*
+     * Products supporting the PGCP service and daemon
+     */
+    param $PRODUCTS_SUPPORTING_PGCP =
+        m5 m7i m10 m10i m20 m40 m40e m160 olive
+        t320 t640 m320 m120 $MX_SERIES_MX80_EXCLUDE $JCS_SCE;
+
+    /*
+     * Products supporting the BSG (Border signaling gateway)
+     * service and daemon
+     */
+    param $PRODUCTS_SUPPORTING_BSG =
+        m7i m10 m10i m320 m120 $MX_SERIES_MX80_EXCLUDE;
+    
+    /*
+     * Products supporting the fast update filters
+     */
+    param $PRODUCTS_SUPPORTING_FUF = t320 t640 m320 m120 $MX_SERIES;
+
+
+    param $PRODUCTS_SUPPORTING_L3VPN_COMPOSITE_NH =
+        m120 m320 $MX_SERIES $T_SERIES;
+
+    /*
+     * Products supporting the show, clear, and edit services hierarchies
+     */
+    param $PRODUCTS_SUPPORTING_SERVICES_HIERARCHY =
+        m5 m7i m10 m10i m20 m40 m40e m160 olive $J_SERIES
+        t320 t640 m320 m120 $MX_SERIES $JCS_SCE;
+
+    /*
+     * Products supporting M-series chipsets
+     */
+    param $PRODUCT_USING_M_SERIES_CHIPSETS = m5 m7i m10 m10i m20 m40 m40e m160;
+
+    /*
+     * Products supporting tri-color policing
+     */
+    param $PRODUCTS_SUPPORTING_TRICOLOR =
+        m7i m10i m120 m320 $T_SERIES $MX_SERIES $JSSG_SERIES olive
+        $JAVA_PRODUCTS_SUPPORTING_TRICOLOR $EX62_SERIES $SNG_SERIES;
+
+    /*
+     * Products supporting port-mirroring
+     */
+    param $PRODUCTS_SUPPORTING_PORT_MIRRORING =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES
+        $MX_SERIES $JSSG_SERIES $J_SERIES $JCS_SCE $ACX_SERIES $SNG_SERIES;
+
+    /*
+     * Products supporting VPLS
+     */
+    param $PRODUCTS_SUPPORTING_VPLS =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m320 $T_SERIES
+        $MX_SERIES $J_SERIES_JSR olive $J_SERIES_USP $JCS_SCE $JSSG_SERIES;
+
+    /*
+     * Products supporting VPLS filter
+     */
+    param $PRODUCTS_SUPPORTING_VPLS_FILTER =
+        m5 m7i m10 m10i m20 m40 m40e m120 m160 m320 IRM $MX_SERIES $T_SERIES
+        olive $J_SERIES_USP;
+
+    param $PRODUCTS_SUPPORTING_POLICING_ACTION_TRICOLOR =
+        m7i m10i m120 m320 $T_SERIES $MX_SERIES $JSSG_SERIES olive;
+
+    /*
+     * Products supporting VPLS policer
+     */
+    param $PRODUCTS_SUPPORTING_VPLS_POLICER =
+        m5 m7i m10 m10i m20 m40 m40e m120 m160 m320 IRM $MX_SERIES $T_SERIES
+        olive $J_SERIES_USP;
+
+    /*
+     * Products supporting VCCV_BFD 
+     */
+    param $PRODUCTS_SUPPORTING_VCCV_BFD =
+        $PRODUCT_M_AND_T_SERIES $SNG_SERIES EX4500_EX82_XRE;
+
+    /*
+     * Products using Gimlet chipset
+     */
+    param $GIMLET_SERIES_CHIPSETS = t320 t640 tx4 m320;
+
+    param $DUAL_RE_PLATFORMS_SINGLE_CHASSIS =
+        m10i m20 m40e m120 m160 m320 t320
+        t640 $MX_SERIES_DUAL_RE $JSSG_SERIES
+        $EX_SERIES_DUAL_RE $JCS_SCE
+        $FX_SERIES_DUAL_RE $FX_SERIES_DCF
+        $SNG_SERIES;
+
+    param $DUAL_RE_PLATFORMS_SINGLE_CHASSIS_EX_SERIES_EXCLUDE =
+        m10i m20 m40e m120 m160 m320 t320 t640 $MX_SERIES_DUAL_RE
+        $JSSG_SERIES $EX_SERIES_CHAS $JCS_SCE $EX_XRE $FX_SERIES_DUAL_RE
+        $SNG_SERIES;
+
+    param $DUAL_RE_PLATFORMS_MULTI_CHASSIS = tx4 txp;
+    param $DUAL_RE_PLATFORMS =
+        DUAL_RE_PLATFORMS_SINGLE_CHASSIS DUAL_RE_PLATFORMS_MULTI_CHASSIS;
+    param $DUAL_RE_PLATFORMS_EX_SERIES_EXCLUDE =
+        DUAL_RE_PLATFORMS_SINGLE_CHASSIS_EX_SERIES_EXCLUDE
+        DUAL_RE_PLATFORMS_MULTI_CHASSIS;
+    param $MULTI_CHASSIS_PLATFORMS = tx4 txp $J_SERIES_USP $JSSG_SERIES;
+
+    param $PRODUCTS_SUPPORTING_NSR =
+        m10i m20 m40e m120 m160 m320 $T_SERIES $MX_SERIES_DUAL_RE
+        $EX62_SERIES EX82_SERIES $JAVA_LATTE $JAVA_EX3300 $JAVA_TSUNAMI
+        $EX_XRE $SNG_SERIES;
+
+    /*
+     * Products supporting L2tp.
+     */
+    grouping PRODUCTS_SUPPORTING_L2TP {
+        product m7i IRM m10 m10i m120 $MX_SERIES;
+    }
+
+    /*
+     * Products supporting L2tp using l2tpd daemon 
+     */
+    grouping PRODUCTS_SUPPORTING_L2TPD_LNS {
+        product m7i IRM m10 m10i m120;
+    }
+
+    /*
+     * products supporting LAC functionality
+     * please, keep it in sync with junos/lib/libjuniper++/platform.cc
+     */
+    grouping PRODUCTS_SUPPORTING_LAC {
+        product $MX_SERIES;
+    }
+
+    /*
+     * products supporting LNS functionality
+     * please, keep it in sync with junos/lib/libjuniper++/platform.cc
+     */
+    grouping PRODUCTS_SUPPORTING_JL2TPD_LNS {
+        product $MX_SERIES;
+    }
+
+    /*
+     * products supporting jpppd
+     */
+    grouping PRODUCTS_SUPPORTING_JPPPD {
+        product m120 m320 $MX_SERIES olive;
+    }
+
+    /*
+     * Products supporting crtp.
+     */
+    grouping PRODUCTS_SUPPORTING_CRTP {
+        product m5 m7i IRM m10 m10i m20 m40 m40e m120 m160
+            $J_SERIES $J_SERIES_USP $MX_SERIES
+            m320 t320 t640;
+    }
+
+    /*
+     * Products supporting link-services CPU based PICS
+     */
+    grouping PRODUCTS_SUPPORTING_LSQ {
+        product m5 m7i m10 m10i m20 m40 m40e m120 m160 m320
+            t320 t640 $MX_SERIES;
+    }
+
+    /*
+     * Products supporting Agave PICS
+     */
+    param $PRODUCTS_SUPPORTING_AGAVE =
+        m40e m120 m320 $T_SERIES olive $MX_SERIES_MX80_EXCLUDE m10i m7i;
+
+    /*
+     * Products supporing Agave PICs and * 'forwarding-class' or
+     * 'loss-priority' as an action in Hierarchical policers.
+     *
+     * Because of the ucode limitation on LMNR platforms, fc/plp as an action
+     * will not be supported in Hierarchical policers on LMNR platforms. Once
+     * the limitation is removed, this list needs to be updated.
+     */
+    param $PRODUCTS_SUPPORTING_AGAVE_ACTION_FC_PLP =
+        m120 m320 $MX_SERIES m10i m7i;
+
+    /*
+     * Products supporting DE classification. Right now only J series and Ichip
+     * based platforms.
+     */
+    param $PRODUCTS_SUPPORTING_DE_CLASSIFICATION =
+        $J_SERIES m120 m320 $MX_SERIES_MX80_EXCLUDE m10i m7i;
+
+    /*
+     * Products supporting IQ2/IQ2E PICS
+     */
+    param $PRODUCTS_SUPPORTING_IQ2 =
+        m5 m7i m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES;
+
+    /*
+     * Products supporting drop profile map to "tcp" and "non-tcp"
+     * configuration.
+     * m120, $MX_SERIES, and J series are excluded from the list.
+     */
+    param $PRODUCTS_SUPPORTING_DROP_PROFILE_MAP_TCP_NONTCP =
+        m5 m7i IRM m10 m10i m20 m40 m40e m160 m320 olive
+        $T_SERIES $JCS_SCE $ACX_SERIES;
+
+    param $PRODUCTS_SUPPORTING_SCHEDULER_TX_RATE_RATE_LIMIT =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive
+        $MX_SERIES $T_SERIES $JCS_SCE $SNG_SERIES;
+
+    param $PRODUCTS_SUPPORTING_EXCESS_BW_SHARING =
+        m5 m7i m10 m10i m20 $PRODUCTS_SUPPORTING_AGAVE $MX_SERIES olive;
+
+    /*
+     * Products supporting flowtap.
+     * m120 and J series are excluded from the list.
+     */
+    param $PRODUCTS_SUPPORTING_FLOWTAP = m7i m10i m20 m40e m320 t320 t640;
+
+    /*
+     * Products supporting GRE tunnels with key(s)
+     * J-series are excluded from the list
+     */
+    param $PRODUCTS_SUPPORTING_GRE_KEYS =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive
+        $MX_SERIES $T_SERIES $JCS_SCE;
+
+    param $PRODUCTS_SUPPORTING_GRE_REASSEMBLY =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m320 m160
+        $MX_SERIES olive $JCS_SCE;
+
+    /*
+     * Products supporting PPPoE server.
+     */
+    param $PRODUCTS_SUPPORTING_PPPOE_SERVER = m120 m320 $MX_SERIES olive;
+
+    /*
+     * Products supporting DDOS
+     */
+    param $PRODUCTS_SUPPORTING_DDOS = $MX_SERIES olive t640;
+
+    /*
+     * Products supporting root system domain (RSD)
+     */
+    param $PRODUCTS_SUPPORTING_RSD = t320 t640;
+
+    /*
+     * Multi-chassis products supporting root system domain (RSD)
+     */
+    param $PRODUCTS_SUPPORTING_RSD_MCHASSIS = tx4 txp;
+
+    /*
+     * Products supporting CE PICs
+     */
+    param $PRODUCTS_SUPPORTING_CE_PICS =
+        m7i m10 m10i m40e m120 m320 $ACX_SERIES $MX_SERIES;
+
+    /*
+     * CEMIC
+     *
+     * Please note EXCLUDE_CEMIC has $MX_SERIES and $ACX_SERIES.
+     */
+    param $PRODUCTS_SUPPORTING_CE_MICS = $MX_SERIES;
+
+    /*
+     * CET1E1 MIC (ACX)
+     */
+    param $PRODUCTS_SUPPORTING_CET1E1_MICS = $ACX_SERIES;
+
+    /*
+     * Products supporting ATM shaping (Traffic
+     * control profile) 
+     */
+    param $PRODUCTS_SUPPORTING_ATM_COS_SCHEDULING = $MX_SERIES $ACX_SERIES;
+
+    /*
+     * Products supporting forwarding class sets 
+     */
+    param $PRODUCTS_SUPPORTING_FC_SET = $FX_SERIES olive;
+
+    /*
+     * Products supporting congestion-notification 
+     */
+    param $PRODUCTS_SUPPORTING_CN = $FX_SERIES olive $JAVA_TSUNAMI;
+
+    /*
+     * Products supporting translate plp to control word discard-eligible bit
+     */
+    param $PRODUCTS_SUPPORTING_PLP_TO_DE_BIT =
+        GIMLET_SERIES_CHIPSETS m7i m10i m120 $MX_SERIES_MX80_EXCLUDE;
+
+    /*
+     * Products Not supporting Fabric priority
+     */
+    param $PRODUCTS_NOT_SUPPORTING_FABRIC_PRIORITY =
+        EX32x42 $FX_SERIES $ACX_SERIES $SNG_SERIES $JAVA_EX3300;
+
+    /*
+     * Products Not supporting Fabric Scheduler
+     */
+    param $PRODUCTS_NOT_SUPPORTING_FABRIC_SCHEDULER =
+        MX80_SERIES $SNG_SERIES;
+
+    /*
+     * Products supporting TWAMP protocol
+     */ 
+    param $PRODUCTS_SUPPORTING_TWAMP =
+        m5 m7i m10 m10i m20 m40e t320 t640 m320 m120 $MX_SERIES;
+
+    /*
+     * products supporting IDP
+     */
+    param $PRODUCTS_SUPPORTING_IDP =
+        $PRODUCTS_SUPPORTING_IDP_USP $PRODUCTS_SUPPORTING_IDP_JSERVICES;
+
+    param $PRODUCTS_SUPPORTING_IDP_SRXSME =
+        srx100h
+        srx110h-va srx110h-vb srx110h-wl
+        srx110h-va-wl srx110h-vb-wl
+        srx210h srx210h-poe srx210h-p-m
+        srx210he srx210he-poe srx210he-p-m
+        srx220h srx220h-poe srx220h-p-m
+        srx240h srx240h-poe srx240h-p-m srx240h-dc
+        srx550
+        SRXMR
+        ln1000-v;
+
+    param $PRODUCTS_SUPPORTING_IDP_USP =
+        $JSSG_SERIES
+        jsr2320 jsr2350 jsr4350 jsr6350 vjx1000
+        $PRODUCTS_SUPPORTING_IDP_SRXSME;
+
+    /*
+     * Products with IDP IPv6 Support
+     */
+    param $PRODUCTS_SUPPORTING_IDP_IPV6 = $JSSG_SERIES ln1000-v;
+
+    /*
+     * IPG platforms supporting IDP(Cypher) officially
+     * To turn it on all M/T(for dev purpose), use  $PRODUCT_M_AND_T_SERIES
+     */
+    param $PRODUCTS_SUPPORTING_IDP_JSERVICES =
+        $MX_SERIES_MX80_EXCLUDE m320 m120 t320 t640;
+
+    /*
+     * Products supporting IDP SSL
+     */
+    param $PRODUCTS_SUPPORTING_IDP_SSL = $JSSG_SERIES;
+
+    /*
+     * Products supporting IDP APP DDOS
+     */
+    param $PRODUCTS_SUPPORTING_IDP_ADDOS = $JSSG_SERIES;
+
+    /*
+     * Products supporting radius triggered flow-tap.
+     */
+    param $PRODUCTS_SUPPORTING_LI = $MX_SERIES olive;
+
+    /*
+     * Products supporting security bridge
+     */
+    param $PRODUCTS_SUPPORTING_SECURITY_BRIDGE = $JSSG_SERIES $JSRXNLE;
+
+    /*
+     * Products supporting Ingress code point rewrite
+     * Currently it is supported on AGAVE, IQ2, IQ2E pics
+     */
+    param $PRODUCTS_SUPPORTING_INGRESS_CP_REWRITE =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive $T_SERIES
+        $JCS_SCE $PRODUCTS_SUPPORTING_LSQ;
+
+    /* Products supporting Unified Access Control (UAC) */
+    param $PRODUCTS_SUPPORTING_UAC = JSRXNLE $JSSG_SERIES $EX_SERIES;
+
+    /* USP products supporting Unified Access Control (UAC) */
+    param $PRODUCTS_SUPPORTING_UAC_USP = JSRXNLE $JSSG_SERIES;
+
+    /*
+     * Products supporting Unidirectional mode on an interface
+     * Currently it is supported on 10GE IQ2/IQ2E pics on T series
+     * and 10GE Atlas pics on MX series
+     */
+    param $PRODUCTS_SUPPORTING_UNIDIRECTIONAL_MODE =
+        $MX_SERIES t640 t320;
+
+    param $QFX_PRODUCTS_WITH_MELLANOX_LICENSE =
+        qfx3500 qfx3500s;
+
+    /* Products supporting Licensed Features */
+    param $PRODUCTS_WITH_LICENSED_FEATURES =
+        j2300 j4300 j6300 j4350 j6350 j2320 j2350 jsr2300 jsr4300
+        jsr6300 vjx1000 jsr4350 jsr6350 jsr2320 jsr2350
+        srx550 srx630 srx650 srx680 srx5800 srx5600
+        srx3600 srx3400 srx1400 srx210b srx210h srx210h-poe srx210h-p-m
+        srx210be srx210he srx210he-poe srx210he-p-m srx220h srx220h-poe
+        srx220h-p-m
+        srx240b srx240h srx240h-poe srx240h-p-m srx240h-dc $MX_SERIES m120
+        m320 ex4200-24f ex4200-24t ex4200-24p ex4200-48t ex4200-48p ex3200-24t
+        ex4200-48px ex4200-24px
+        ex3200-24p ex3200-48t ex3200-48p ex8208 ex8216 ex6210 txp sumatra
+        srx100b srx100h
+        srx110b-va srx110h-va srx110b-vb srx110h-vb
+        srx110b-wl srx110h-wl
+        srx110h-va-wl srx110h-vb-wl
+        m10i m7i m40e $SNG_SERIES
+        $ESR_SERIES
+        $MAG_SERIES
+        $JAVA_EX2200
+        $JAVA_TSUNAMI
+        $MAG_SERIES
+        $EX62_SERIES
+        $JAVA_EX3300
+        $QFX_PRODUCTS_WITH_MELLANOX_LICENSE
+        $EX_XRE;
+
+    /*
+     *  Products supporting 3G wireless WAN interface
+     */
+    param $PRODUCT_SUPPORTING_3G =
+        srx100b srx100h
+        srx110b-va srx110h-va srx110b-vb srx110h-vb
+        srx110b-wl srx110h-wl
+        srx110h-va-wl srx110h-vb-wl
+        srx210b srx210h srx210h-poe srx210h-p-m
+        srx210be srx210he srx210he-poe srx210he-p-m;
+
+    /*
+     *  Products supporting WWAN - for now 3G
+     */
+    param $PRODUCT_SUPPORTING_WWAN =
+        srx100b srx100h
+        srx210b srx210h srx210h-poe srx210h-p-m
+        srx210be srx210he srx210he-poe srx210he-p-m;
+  
+    /*
+     *  Products supporting VOICE
+     */   
+    param $PRODUCTS_SUPPORTING_VOICE =
+        srx210h-p-m srx210he-p-m srx220h-p-m srx240h-p-m;
+
+    /*
+     * Products that run wxd
+     */
+    param $PRODUCTS_WXD = jsr4350 jsr6350 jsr2350 jsr2320;
+
+    /*
+     * Products supporting egress FC to Q remapping
+     */
+    param $PRODUCTS_SUPPORTING_EGRESS_FC_TO_Q_REMAP =
+        m7i m10i m120 m320 $MX_SERIES $T_SERIES;
+
+    /*
+     * Products supporting Wireless LAN access points
+     */
+    param $PRODUCTS_SUPPORTING_WLAN_AP =
+        $JSRXNLE_SRX_1XX $JSRXNLE_SRX_2XX SRXSME_SRE6;
+
+    /*
+     * Products supporting Multi-destination
+     */
+    param $PRODUCTS_SUPPORTING_MULTI_DESTINATION =
+        EX82_SERIES $EX_XRE $FX_SERIES_SI;
+
+    param $PRODUCTS_NOT_SUPPORTING_MPLS_EXP =
+        $JAVA_EX2200 $JAVA_TSUNAMI $JSSG_SERIES $FX_SERIES
+        $JAVA_EX3300;
+
+    param $PRODUCTS_SUPPORTING_SHARED_BUFFER =
+        EX32x42 $JAVA_EX2200 $JAVA_EX3300 $JAVA_TSUNAMI $EX62_SERIES;
+
+    param $PRODUCTS_NOT_SUPPORTING_DSCP_IPV6 = $JAVA_EX2200;
+
+    param $PRODUCTS_SUPPORTING_REVERSE_TELNET =
+        j2320 j2350 j4350 j6350 jsr2320 jsr2350 jsr4350 jsr6350 vjx1000;
+
+    param $PRODUCTS_SUPPORTING_APPID_USP =
+        $JSSG_SERIES
+        srx100h
+        srx110h-va srx110h-vb srx110h-wl
+        srx110h-va-wl srx110h-vb-wl
+        srx210h srx210h-poe srx210h-p-m
+        srx210he srx210he-poe
+        srx220h srx220h-poe srx220h-p-m
+        srx240h srx240h-poe srx240h-p-m srx240h-dc
+        SRXMR
+        $ESR_SERIES;
+
+    param $PRODUCTS_SUPPORTING_APPID_MSP =
+        $MX_SERIES_MX80_EXCLUDE m320 m120 t320 t640 
+
+    param $PRODUCTS_SUPPORTING_APPID_HEURISTICS =
+        $PRODUCTS_SUPPORTING_APPID_USP $PRODUCTS_SUPPORTING_APPID_MSP;
+
+    param $PRODUCTS_SUPPORTING_APPID_STATISTICS =
+        $PRODUCTS_SUPPORTING_APPID_USP;
+
+    param $PRODUCTS_SUPPORTING_APPID_GROUPS =
+        $PRODUCTS_SUPPORTING_APPID;
+
+    param $PRODUCTS_SUPPORTING_APPID_MSP =
+        $MX_SERIES_MX80_EXCLUDE m320 m120 t320 t640;
+
+    param $PRODUCTS_SUPPORTING_APPID =
+        $PRODUCTS_SUPPORTING_APPID_MSP $PRODUCTS_SUPPORTING_APPID_USP;
+
+    param $PRODUCTS_SUPPORTING_APPQOS =
+        $JSSG_SERIES;
+
+    param $PRODUCTS_SUPPORTING_ETHERNET_SWITCHING =
+        $EX_SERIES $FX_SERIES;
+
+    param $PRODUCTS_SUPPORTING_GDOI =
+        $J_SERIES_USP;
+
+    param $PRODUCTS_SUPPORTING_AACL =
+        $MX_SERIES_MX80_EXCLUDE m320 m120 t320 t640;
+
+    param $PRODUCTS_SUPPORTING_SLB =
+        $MAG_SERIES_WITH_SLB;
+
+    param $PRODUCTS_SUPPORTING_VPN_ALTOIDS =
+        $JSRXNLE_SRX_1XX $JSRXNLE_SRX_2XX SRXMR;
+
+    /*
+     * Products supporting global based classifier.
+     */
+    param $PRODUCTS_SUPPORTING_GLOBAL_CLASSIFIER = $ACX_SERIES;
+
+    /*
+     * Products supporting ifd based classifier.
+     */
+    param $PRODUCTS_SUPPORTING_IFD_CLASSIFIER = $FX_SERIES $ACX_SERIES;
+
+    /*
+     * Product supporting ifd based rewrites.
+     */
+    param $PRODUCTS_SUPPORTING_IFD_REWRITE = $FX_SERIES $ACX_SERIES;
+
+    /*
+     * Products supporting port level VLAN CCC encapsulation
+     */
+    param $PRODUCTS_SUPPORTING_PORT_VLAN_CCC_ENCAP =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive
+        $MX_SERIES $T_SERIES
+        $JCS_SCE $JSSG_SERIES srx5800 srx5600 vjx1000;
+
+    /*
+     * Products supporting port level EXTENDED VLAN CCC encapsulation
+     */
+    param $PRODUCTS_SUPPORTING_PORT_EXT_VLAN_CCC_ENCAP =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive
+        $MX_SERIES $T_SERIES $JCS_SCE $JSSG_SERIES srx5800 srx5600 vjx1000;
+
+    /*
+     * Products supporting port level EXTENDED VLAN TCC encapsulation
+     */
+    param $PRODUCTS_SUPPORTING_PORT_EXT_VLAN_TCC_ENCAP =
+        m5 m7i IRM m10 m10i m20 m40 m40e m120 m160 m320 olive
+        $MX_SERIES $T_SERIES $JCS_SCE $JSSG_SERIES srx5800 srx5600 vjx1000;
+
+    /*
+     * EX Fixed VC platforms supporting NSSU
+     */
+    param $FIXED_VC_NSSU_SUPPORTED_PRODUCTS =
+        $JAVA_LATTE $JAVA_TSUNAMI $JAVA_EX3300;
+
+    /* Product that support SRX branch devices */
+    param $PRODUCT_SUPPORTING_JWX = 
+        srx100h srx210h srx210h-poe srx210h-p-m
+        srx240h srx240h-poe srx240h-p-m srx650;
+}
+

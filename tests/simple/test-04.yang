@@ -1,0 +1,22 @@
+module foo {
+    prefix "foo";
+    namespace "http://example.com/foo";
+
+    import goo;
+
+    extension mumble {
+	argument this";
+        parents "grouping typedef";
+    }
+
+    grouping foo {
+	leaf foo-leaf {
+	    type int;
+	}
+    }
+
+    container foo {
+        uses foo:contents;
+        uses goo:contents;
+    }
+}
