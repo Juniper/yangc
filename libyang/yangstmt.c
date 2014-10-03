@@ -64,7 +64,8 @@ yangStmtRebuildParents (yang_stmt_t *ysp, yang_relative_t *yrp)
  * Add a new statement to the list of supported statements
  */
 void
-yangStmtAdd (yang_stmt_t *ysp, const char *namespace, int count)
+yangStmtAdd (yang_stmt_t *ysp, const char *namespace, const char *prefix,
+	     int count)
 {
     static unsigned ys_id;
 
@@ -75,6 +76,9 @@ yangStmtAdd (yang_stmt_t *ysp, const char *namespace, int count)
 	ysp->ys_id = ys_id++;
 	if (namespace)
 	    ysp->ys_namespace = namespace;
+
+	if (prefix)
+	    ysp->ys_prefix = prefix;
 
 	if (ysp->ys_parents) {
 	    yang_relative_t *yrp;
@@ -92,16 +96,11 @@ yang_stmt_t *
 yangStmtFind (const char *namespace, const char *name)
 {
     yang_stmt_t *ysp;
-    int is_yin = namespace ? streq(namespace, YIN_URI) : FALSE;
 
     TAILQ_FOREACH(ysp, &yangStmtList, ys_link) {
-	if (namespace) {
-	    if (ysp->ys_namespace) {
-		if (!streq(namespace, ysp->ys_namespace))
-		    continue;
-	    } else if (!is_yin)
+	if (namespace && ysp->ys_namespace)
+	    if (!streq(namespace, ysp->ys_namespace))
 		continue;
-	}
 
 	if (streq(ysp->ys_name, name))
 	    return ysp;
@@ -111,12 +110,37 @@ yangStmtFind (const char *namespace, const char *name)
 }
 
 static xmlNsPtr
-yangStmtFindNs (yang_data_t *ydp, yang_stmt_t *ysp)
+yangFindNs (xmlNodePtr nodep, const char *href)
 {
+    xmlNsPtr nsp;
+
+    for ( ; nodep && nodep->type != XML_DOCUMENT_NODE; nodep = nodep->parent)
+	for (nsp = nodep->nsDef; nsp; nsp = nsp->next)
+	    if (nsp->href && streq(href, (const char *) nsp->href))
+		return nsp;
+
+    return NULL;
+}
+
+static xmlNsPtr
+yangStmtFindNs (yang_data_t *ydp, slax_data_t *sdp, yang_stmt_t *ysp)
+{
+    xmlNsPtr nsp;
+
     if (ysp->ys_namespace == NULL)
 	return ydp->yd_nsp;
 
-    return NULL;
+    xmlNodePtr nodep = sdp->sd_ctxt->node;
+    nsp = yangFindNs(nodep, ysp->ys_namespace);
+    if (nsp == NULL) {
+	if (ysp->ys_prefix) {
+	    nsp = xmlNewNs(xmlDocGetRootElement(sdp->sd_docp),
+			   (const xmlChar *) ysp->ys_namespace,
+			   (const xmlChar *) ysp->ys_prefix);
+	}
+    }
+
+    return nsp;
 }
 
 xmlNodePtr
@@ -305,7 +329,7 @@ yangStmtOpen (slax_data_t *sdp, const char *raw_name)
 
     yang_stmt_t *ysp = yangStmtFind(namespace, name);
     if (ysp) {
-	sdp->sd_ctxt->node->ns = yangStmtFindNs(ydp, ysp);
+	sdp->sd_ctxt->node->ns = yangStmtFindNs(ydp, sdp, ysp);
 
 	flags |= yangCheckChildren(sdp, ysp, name);
 
@@ -406,7 +430,9 @@ yangStmtSetArgument (slax_data_t *sdp, slax_string_t *value,
     }
 
     if (as_element) {
+	/* XXX need to find namespace for this specific statement */
 	slaxElementOpen(sdp, argument);
+	sdp->sd_ctxt->node->ns = ydp->yd_nsp;
 	slaxElementXPath(sdp, value, as_element, FALSE);
 	slaxElementClose(sdp);
 
