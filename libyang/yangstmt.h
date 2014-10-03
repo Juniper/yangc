@@ -32,6 +32,7 @@ typedef struct yang_stmt_s {
     unsigned ys_id; /* Identifier for this statement */
     const char *ys_name;	/* The name of this statement */
     const char *ys_namespace;   /* XML namespace */
+    const char *ys_prefix;	/* XML prefix */
     const char *ys_argument;	/* YIN attribute name for argument */
     unsigned ys_flags;		/* Flags for this statement (YSF_*) */
     unsigned ys_type;		/* Type of argument (Y_*) */
@@ -56,7 +57,8 @@ void
 yangStmtInit (void);
 
 void
-yangStmtAdd (yang_stmt_t *ysp, const char *namespace, int count);
+yangStmtAdd (yang_stmt_t *ysp, const char *namespace, const char *prefix,
+	     int count);
 
 yang_stmt_t *
 yangStmtFind (const char *namespace, const char *name);
