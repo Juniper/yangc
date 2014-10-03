@@ -293,6 +293,7 @@ yangStmtCloseExtension (YANG_STMT_CLOSE_ARGS)
     yang_stmt_t *arg_stmtp = yangStmtFind(NULL, YS_ARGUMENT);
     char *element = yangStmtGetValue(sdp, nodep, arg_stmtp);
     char *name = slaxGetAttrib(nodep, YS_NAME);
+    const char *prefix = NULL;
 
     slaxLog("yang: extension: %p %p '%s' -> '%s'",
 	    sdp, ysp, name, element ?: "");
@@ -308,9 +309,10 @@ yangStmtCloseExtension (YANG_STMT_CLOSE_ARGS)
 
 		xmlNsPtr nsp = xmlSearchNs(sdp->sd_docp, sdp->sd_ctxt->node,
 					   (const xmlChar *) name);
-		if (nsp && nsp->href)
+		if (nsp && nsp->href) {
 		    newp->ys_namespace = (char *) xmlStrdup(nsp->href);
-		else
+		    prefix = name;
+		} else
 		    slaxError("unknown prefix '%s'", name);
 
 	    } else
@@ -327,7 +329,7 @@ yangStmtCloseExtension (YANG_STMT_CLOSE_ARGS)
 
 	    newp->ys_type = yangStmtGetType(ydp, sdp);
 
-	    yangStmtAdd(newp, NULL, 1);
+	    yangStmtAdd(newp, NULL, prefix, 1);
 	}
 
 	xmlFree(name);
@@ -1384,6 +1386,6 @@ static yang_stmt_t yangStmtBuiltinExtensions[] = {
 void
 yangStmtInitBuiltin (void)
 {
-    yangStmtAdd(yangStmtBuiltin, NULL, 0);
-    yangStmtAdd(yangStmtBuiltinExtensions, YANGC_URI, 0);
+    yangStmtAdd(yangStmtBuiltin, NULL, NULL, 0);
+    yangStmtAdd(yangStmtBuiltinExtensions, YANGC_URI, YANGC_PREFIX, 0);
 }
