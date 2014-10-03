@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" version="1.0">
+  <xsl:template match="/features">
+    <!-- Contents of "acme-system.yang -->
+    <yin:module xmlns="http://acme.example.com/system" name="acme-system">
+      <yin:namespace uri="http://acme.example.com/system"/>
+      <yin:prefix value="acme"/>
+      <yin:organization>
+        <yin:text>
+          <xsl:text>ACME Inc.</xsl:text>
+        </yin:text>
+      </yin:organization>
+      <yin:contact>
+        <yin:text>
+          <xsl:text>joe@acme.example.com</xsl:text>
+        </yin:text>
+      </yin:contact>
+      <yin:description>
+        <yin:text>
+          <xsl:text>The module for entities implementing the ACME system.</xsl:text>
+        </yin:text>
+      </yin:description>
+      <yin:revision date="2007-06-09">
+        <yin:description>
+          <yin:text>
+            <xsl:text>Initial revision.</xsl:text>
+          </yin:text>
+        </yin:description>
+      </yin:revision>
+      <yin:container name="system">
+        <yin:leaf name="host-name">
+          <yin:type name="string"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>Hostname for this system</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf>
+        <yin:leaf-list name="domain-search">
+          <yin:type name="string"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>List of domain names to search</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf-list>
+        <yin:container name="login">
+          <yin:leaf name="message">
+            <yin:type name="string"/>
+            <yin:description>
+              <yin:text>
+                <xsl:text>Message given at start of login session</xsl:text>
+              </yin:text>
+            </yin:description>
+          </yin:leaf>
+          <yin:list name="user">
+            <yin:key value="name"/>
+            <yin:leaf name="name">
+              <yin:type name="string"/>
+            </yin:leaf>
+            <yin:leaf name="full-name">
+              <yin:type name="string"/>
+            </yin:leaf>
+            <yin:leaf name="class">
+              <yin:type name="string"/>
+            </yin:leaf>
+          </yin:list>
+        </yin:container>
+      </yin:container>
+      <yin:list name="interface">
+        <yin:key value="name"/>
+        <yin:leaf name="name">
+          <yin:type name="string"/>
+        </yin:leaf>
+        <yin:leaf name="speed">
+          <yin:type name="enumeration">
+            <yin:enum name="10m"/>
+            <yin:enum name="100m"/>
+            <yin:enum name="auto"/>
+          </yin:type>
+        </yin:leaf>
+        <yin:leaf name="observed-speed">
+          <yin:type name="uint32"/>
+          <yin:config value="false"/>
+        </yin:leaf>
+      </yin:list>
+      <yin:typedef name="percent">
+        <yin:type name="uint8">
+          <yin:range/>
+        </yin:type>
+        <yin:description>
+          <yin:text>
+            <xsl:text>Percentage</xsl:text>
+          </yin:text>
+        </yin:description>
+      </yin:typedef>
+      <yin:leaf name="completed">
+        <yin:type name="percent"/>
+      </yin:leaf>
+      <yin:grouping name="target">
+        <yin:leaf name="address">
+          <yin:type name="inet:ip-address"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>Target IP address</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf>
+        <yin:leaf name="port">
+          <yin:type name="inet:port-number"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>Target port number</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf>
+      </yin:grouping>
+      <yin:container name="peer">
+        <yin:container name="destination">
+          <yin:uses name="target"/>
+        </yin:container>
+      </yin:container>
+      <yin:container name="connection">
+        <yin:container name="source">
+          <yin:uses name="target">
+            <yin:refine target-node="address">
+              <yin:description>
+                <yin:text>
+                  <xsl:text>Source IP address</xsl:text>
+                </yin:text>
+              </yin:description>
+            </yin:refine>
+            <yin:refine target-node="port">
+              <yin:description>
+                <yin:text>
+                  <xsl:text>Source port number</xsl:text>
+                </yin:text>
+              </yin:description>
+            </yin:refine>
+          </yin:uses>
+        </yin:container>
+        <yin:container name="destination">
+          <yin:uses name="target">
+            <yin:refine target-node="address">
+              <yin:description>
+                <yin:text>
+                  <xsl:text>Destination IP address</xsl:text>
+                </yin:text>
+              </yin:description>
+            </yin:refine>
+            <yin:refine target-node="port">
+              <yin:description>
+                <yin:text>
+                  <xsl:text>Destination port number</xsl:text>
+                </yin:text>
+              </yin:description>
+            </yin:refine>
+          </yin:uses>
+        </yin:container>
+      </yin:container>
+      <yin:container name="food">
+        <yin:choice name="snack">
+          <yin:case name="sports-arena">
+            <yin:leaf name="pretzel">
+              <yin:type name="empty"/>
+            </yin:leaf>
+            <yin:leaf name="beer">
+              <yin:type name="empty"/>
+            </yin:leaf>
+          </yin:case>
+          <yin:case name="late-night">
+            <yin:leaf name="chocolate">
+              <yin:type name="enumeration">
+                <yin:enum name="dark"/>
+                <yin:enum name="milk"/>
+                <yin:enum name="first-available"/>
+              </yin:type>
+            </yin:leaf>
+          </yin:case>
+        </yin:choice>
+      </yin:container>
+      <yin:augment target-node="/system/login/user">
+        <yin:when condition="class != 'wheel'"/>
+        <yin:leaf name="uid">
+          <yin:type name="uint16">
+            <yin:range/>
+          </yin:type>
+        </yin:leaf>
+      </yin:augment>
+      <yin:rpc name="activate-software-image">
+        <yin:input>
+          <yin:leaf name="image-name">
+            <yin:type name="string"/>
+          </yin:leaf>
+        </yin:input>
+        <yin:output>
+          <yin:leaf name="status">
+            <yin:type name="string"/>
+          </yin:leaf>
+        </yin:output>
+      </yin:rpc>
+      <yin:notification name="link-failure">
+        <yin:description>
+          <yin:text>
+            <xsl:text>A link failure has been detected</xsl:text>
+          </yin:text>
+        </yin:description>
+        <yin:leaf name="if-name">
+          <yin:type name="leafref">
+            <yin:path value="/interface/name"/>
+          </yin:type>
+        </yin:leaf>
+        <yin:leaf name="if-admin-status">
+          <yin:type name="admin-status"/>
+        </yin:leaf>
+        <yin:leaf name="if-oper-status">
+          <yin:type name="oper-status"/>
+        </yin:leaf>
+      </yin:notification>
+      <yin:list name="server">
+        <yin:key value="name"/>
+        <yin:unique tag="ip port"/>
+        <yin:leaf name="name">
+          <yin:type name="string"/>
+        </yin:leaf>
+        <yin:leaf name="ip">
+          <yin:type name="inet:ip-address"/>
+        </yin:leaf>
+        <yin:leaf name="port">
+          <yin:type name="inet:port-number"/>
+        </yin:leaf>
+      </yin:list>
+      <yin:container name="transfer">
+        <yin:choice name="how">
+          <yin:default value="interval"/>
+          <yin:case name="interval">
+            <yin:leaf name="interval">
+              <yin:type name="uint16"/>
+              <yin:default value="30"/>
+              <yin:units name="minutes"/>
+            </yin:leaf>
+          </yin:case>
+          <yin:case name="daily">
+            <yin:leaf name="daily">
+              <yin:type name="empty"/>
+            </yin:leaf>
+            <yin:leaf name="time-of-day">
+              <yin:type name="string"/>
+              <yin:units name="24-hour-clock"/>
+              <yin:default value="1am"/>
+            </yin:leaf>
+          </yin:case>
+          <yin:case name="manual">
+            <yin:leaf name="manual">
+              <yin:type name="empty"/>
+            </yin:leaf>
+          </yin:case>
+        </yin:choice>
+      </yin:container>
+      <yin:container name="protocol">
+        <yin:choice name="name">
+          <yin:case name="a">
+            <yin:leaf name="udp">
+              <yin:type name="empty"/>
+            </yin:leaf>
+          </yin:case>
+          <yin:case name="b">
+            <yin:leaf name="tcp">
+              <yin:type name="empty"/>
+            </yin:leaf>
+          </yin:case>
+        </yin:choice>
+      </yin:container>
+      <yin:feature name="local-storage">
+        <yin:description>
+          <yin:text>
+            <xsl:text>This feature means the device supports local
+               storage (memory, flash or disk) that can be used to
+               store syslog messages.</xsl:text>
+          </yin:text>
+        </yin:description>
+      </yin:feature>
+      <yin:container name="syslog">
+        <yin:leaf name="local-storage-limit">
+          <yin:if-feature name="local-storage"/>
+          <yin:type name="uint64"/>
+          <yin:units name="kilobyte"/>
+          <yin:config value="false"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>The amount of local storage that can be
+                   used to hold syslog messages.</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf>
+      </yin:container>
+      <yin:typedef name="my-decimal">
+        <yin:type name="decimal64">
+          <yin:fraction-digits value="2"/>
+          <yin:range/>
+        </yin:type>
+      </yin:typedef>
+      <yin:leaf name="string-node">
+        <yin:type name="string">
+          <yin:length/>
+          <yin:pattern value="[0-9a-fA-F]*"/>
+        </yin:type>
+      </yin:leaf>
+      <yin:leaf name="myenum">
+        <yin:type name="enumeration">
+          <yin:enum name="zero"/>
+          <yin:enum name="one"/>
+          <yin:enum name="seven">
+            <yin:value value="7"/>
+          </yin:enum>
+        </yin:type>
+      </yin:leaf>
+      <yin:leaf name="mybits">
+        <yin:type name="bits">
+          <yin:bit name="disable-nagle">
+            <yin:position value="0"/>
+          </yin:bit>
+          <yin:bit name="auto-sense-speed">
+            <yin:position value="1"/>
+          </yin:bit>
+          <yin:bit name="10-Mb-only">
+            <yin:position value="2"/>
+          </yin:bit>
+        </yin:type>
+        <yin:default value="auto-sense-speed"/>
+      </yin:leaf>
+      <yin:list name="interface">
+        <yin:key value="name"/>
+        <yin:leaf name="name">
+          <yin:type name="string"/>
+        </yin:leaf>
+        <yin:leaf name="admin-status">
+          <yin:type name="admin-status"/>
+        </yin:leaf>
+        <yin:list name="address">
+          <yin:key value="ip"/>
+          <yin:leaf name="ip">
+            <yin:type name="yang:ip-address"/>
+          </yin:leaf>
+        </yin:list>
+      </yin:list>
+      <yin:container name="default-address">
+        <yin:leaf name="ifname">
+          <yin:type name="leafref">
+            <yin:path value="../../interface/name"/>
+          </yin:type>
+        </yin:leaf>
+        <yin:leaf name="address">
+          <yin:type name="leafref">
+            <yin:path value="../../interface[name = current()/../ifname]/address/ip"/>
+          </yin:type>
+        </yin:leaf>
+      </yin:container>
+      <yin:notification name="link-failure">
+        <yin:leaf name="if-name">
+          <yin:type name="leafref">
+            <yin:path value="/interface/name"/>
+          </yin:type>
+        </yin:leaf>
+        <yin:leaf name="admin-status">
+          <yin:type name="leafref">
+            <yin:path value="/interface[name = current()/../if-name]/admin-status"/>
+          </yin:type>
+        </yin:leaf>
+      </yin:notification>
+      <yin:leaf name="union-node">
+        <yin:type name="union">
+          <yin:type name="int32"/>
+          <yin:type name="enumeration">
+            <yin:enum name="unbounded"/>
+          </yin:type>
+        </yin:type>
+      </yin:leaf>
+    </yin:module>
+  </xsl:template>
+</xsl:stylesheet>

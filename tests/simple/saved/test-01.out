@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<yin:module xmlns="http://foo.example.net" xmlns:foo="http://foo.example.net" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" xmlns:yangc="http://juise.org/yangc/1.0" name="foo">
+  <yin:namespace uri="http://foo.example.net">
+    <yin:prefix value="foo"/>
+  </yin:namespace>
+  <yin:contact>
+    <yin:text>Phil Shafer</yin:text>
+  </yin:contact>
+  <yin:extension name="foo:fred">
+    <yin:argument name="fred-is-cool"/>
+    <yangc:parents names="leaf"/>
+  </yin:extension>
+  <yin:augment target-node="protocols">
+    <yin:container name="my-stuff">
+      <yin:description>
+        <yin:text>my-stuff help</yin:text>
+      </yin:description>
+      <yin:leaf name="test">
+        <fred fred-is-cool="this is working"/>
+        <yin:description>
+          <yin:text>one string; another string</yin:text>
+        </yin:description>
+        <yin:type name="int">
+          <yin:range value="1 .. 100"/>
+        </yin:type>
+        <yin:default value="15"/>
+        <yin:must condition="some-function(test)"/>
+      </yin:leaf>
+      <yin:leaf-list name="funky">
+        <yin:description>
+          <yin:text>Funky stuff</yin:text>
+        </yin:description>
+        <yin:type name="string"/>
+      </yin:leaf-list>
+      <yin:leaf-list name="funky-too">
+        <yin:description>
+          <yin:text>More funky stuff</yin:text>
+        </yin:description>
+        <yin:type name="string"/>
+      </yin:leaf-list>
+    </yin:container>
+  </yin:augment>
+</yin:module>
+module foo {
+    namespace "http://foo.example.net" {
+        prefix foo;
+    }
+    contact "Phil Shafer";
+    extension foo:fred {
+        argument fred-is-cool;
+        parents leaf;
+    }
+    augment protocols {
+        container my-stuff {
+            description "my-stuff help";
+            leaf test {
+                fred "this is working";
+                description "one string; another string";
+                type int {
+                    range "1 .. 100";
+                }
+                default 15;
+                must some-function(test);
+            }
+            leaf-list funky {
+                description "Funky stuff";
+                type string;
+            }
+            leaf-list funky-too {
+                description "More funky stuff";
+                type string;
+            }
+        }
+    }
+}
+

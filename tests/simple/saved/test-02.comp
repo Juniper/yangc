@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" xmlns:yangc="http://juise.org/yangc/1.0" version="1.0">
+  <xsl:param name="MIN" select="12"/>
+  <xsl:param name="MAX" select="100"/>
+  <xsl:param name="test-default" select="42"/>
+  <xsl:param name="test" select="&quot;not(foo)&quot;"/>
+  <xsl:param name="this" select="&quot;one&quot;"/>
+  <xsl:param name="that" select="&quot;two&quot;"/>
+  <xsl:template name="foo">
+    <xsl:param name="a"/>
+    <xsl:param name="b"/>
+    <xsl:param name="c"/>
+    <yin:leaf name="foo-is-working">
+      <xsl:if test="$c &gt; 1">
+        <yin:description>
+          <yin:text>
+            <xsl:value-of select="$b"/>
+          </yin:text>
+        </yin:description>
+      </xsl:if>
+    </yin:leaf>
+  </xsl:template>
+  <xsl:template match="/features">
+    <yin:module xmlns="http://foo.example.net" xmlns:foo="http://foo.example.net" name="foo">
+      <!-- This is a commen -->
+      <!-- This is a comment also -->
+      <yin:namespace uri="http://foo.example.net">
+        <yin:prefix value="foo"/>
+      </yin:namespace>
+      <yin:contact>
+        <yin:text>
+          <xsl:text>Phil Shafer</xsl:text>
+        </yin:text>
+      </yin:contact>
+      <yin:include module="base-02"/>
+      <yin:augment target-node="protocols">
+        <xsl:call-template name="foo">
+          <xsl:with-param name="a" select="&quot;foo-data&quot;"/>
+          <xsl:with-param name="b" select="&quot;Foo Data&quot;"/>
+          <xsl:with-param name="c" select="2"/>
+        </xsl:call-template>
+        <yin:container name="one">
+          <yin:must condition="not(../two == {$MAX})"/>
+          <yin:must condition="{$test}"/>
+          <yin:must condition="{$this} == {$that}"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>This is a help string</xsl:text>
+            </yin:text>
+          </yin:description>
+          <yin:config value="true"/>
+        </yin:container>
+        <yin:leaf name="test">
+          <yin:description>
+            <yin:text>
+              <xsl:text>testing</xsl:text>
+            </yin:text>
+          </yin:description>
+          <yin:must condition="test + ing"/>
+          <yin:type name="int">
+            <yin:range value="{$MIN} .. {$MAX}"/>
+          </yin:type>
+          <yin:default value="{$test-default}"/>
+          <yin:must condition=". &lt; {$MAX}"/>
+        </yin:leaf>
+      </yin:augment>
+      <yin:container name="examples-from-spec">
+        <yin:leaf name="host-name">
+          <yin:type name="string"/>
+          <yin:description>
+            <yin:text>
+              <xsl:text>Hostname for this system</xsl:text>
+            </yin:text>
+          </yin:description>
+        </yin:leaf>
+        <yin:container name="system">
+          <yin:container name="login">
+            <yin:leaf name="message">
+              <yin:type name="string"/>
+              <yin:description>
+                <yin:text>
+                  <xsl:text>Message given at start of login session</xsl:text>
+                </yin:text>
+              </yin:description>
+            </yin:leaf>
+            <yin:list name="user">
+              <yin:key value="name"/>
+              <yin:leaf name="name">
+                <yin:type name="string"/>
+              </yin:leaf>
+              <yin:leaf name="full-name">
+                <yin:type name="string"/>
+              </yin:leaf>
+              <yin:leaf name="class">
+                <yin:type name="string"/>
+              </yin:leaf>
+            </yin:list>
+          </yin:container>
+        </yin:container>
+      </yin:container>
+    </yin:module>
+  </xsl:template>
+</xsl:stylesheet>

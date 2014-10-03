@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<yin:module xmlns="http://foo.example.net" xmlns:foo="http://foo.example.net" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" xmlns:yangc="http://juise.org/yangc/1.0" name="foo">
+  <yin:namespace uri="http://foo.example.net">
+    <yin:prefix value="foo"/>
+  </yin:namespace>
+  <yin:contact>
+    <yin:text>Phil Shafer</yin:text>
+  </yin:contact>
+  <yin:include module="base-02"/>
+  <yin:augment target-node="protocols">
+    <yin:leaf name="foo-is-working">
+      <yin:description>
+        <yin:text>Foo Data</yin:text>
+      </yin:description>
+    </yin:leaf>
+    <yin:container name="one">
+      <yin:must condition="not(../two == 100)"/>
+      <yin:must condition="not(foo)"/>
+      <yin:must condition="one == two"/>
+      <yin:description>
+        <yin:text>This is a help string</yin:text>
+      </yin:description>
+      <yin:config value="true"/>
+    </yin:container>
+    <yin:leaf name="test">
+      <yin:description>
+        <yin:text>testing</yin:text>
+      </yin:description>
+      <yin:must condition="test + ing"/>
+      <yin:type name="int">
+        <yin:range value="12 .. 100"/>
+      </yin:type>
+      <yin:default value="42"/>
+      <yin:must condition=". &lt; 100"/>
+    </yin:leaf>
+  </yin:augment>
+  <yin:container name="examples-from-spec">
+    <yin:leaf name="host-name">
+      <yin:type name="string"/>
+      <yin:description>
+        <yin:text>Hostname for this system</yin:text>
+      </yin:description>
+    </yin:leaf>
+    <yin:container name="system">
+      <yin:container name="login">
+        <yin:leaf name="message">
+          <yin:type name="string"/>
+          <yin:description>
+            <yin:text>Message given at start of login session</yin:text>
+          </yin:description>
+        </yin:leaf>
+        <yin:list name="user">
+          <yin:key value="name"/>
+          <yin:leaf name="name">
+            <yin:type name="string"/>
+          </yin:leaf>
+          <yin:leaf name="full-name">
+            <yin:type name="string"/>
+          </yin:leaf>
+          <yin:leaf name="class">
+            <yin:type name="string"/>
+          </yin:leaf>
+        </yin:list>
+      </yin:container>
+    </yin:container>
+  </yin:container>
+</yin:module>
+module foo {
+    namespace "http://foo.example.net" {
+        prefix foo;
+    }
+    contact "Phil Shafer";
+    include base-02;
+    augment protocols {
+        leaf foo-is-working {
+            description "Foo Data";
+        }
+        container one {
+            must "not(../two == 100)";
+            must not(foo);
+            must "one == two";
+            description "This is a help string";
+            config true;
+        }
+        leaf test {
+            description testing;
+            must "test + ing";
+            type int {
+                range "12 .. 100";
+            }
+            default 42;
+            must ". < 100";
+        }
+    }
+    container examples-from-spec {
+        leaf host-name {
+            type string;
+            description "Hostname for this system";
+        }
+        container system {
+            container login {
+                leaf message {
+                    type string;
+                    description "Message given at start of login session";
+                }
+                list user {
+                    key name;
+                    leaf name {
+                        type string;
+                    }
+                    leaf full-name {
+                        type string;
+                    }
+                    leaf class {
+                        type string;
+                    }
+                }
+            }
+        }
+    }
+}
+

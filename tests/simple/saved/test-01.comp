@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" xmlns:yangc="http://juise.org/yangc/1.0" version="1.0">
+  <xsl:param name="test-default" select="15"/>
+  <xsl:param name="test-min" select="1"/>
+  <xsl:param name="test-max" select="100"/>
+  <xsl:template name="test">
+    <xsl:param name="help"/>
+    <yin:description>
+      <yin:text>
+        <xsl:value-of select="$help"/>
+      </yin:text>
+    </yin:description>
+  </xsl:template>
+  <xsl:template match="/features">
+    <yin:module xmlns="http://foo.example.net" xmlns:foo="http://foo.example.net" name="foo">
+      <yin:namespace uri="http://foo.example.net">
+        <yin:prefix value="foo"/>
+      </yin:namespace>
+      <yin:contact>
+        <yin:text>
+          <xsl:text>Phil Shafer</xsl:text>
+        </yin:text>
+      </yin:contact>
+      <yin:extension name="foo:fred">
+        <yin:argument name="fred-is-cool"/>
+        <yangc:parents names="leaf"/>
+      </yin:extension>
+      <yin:augment target-node="protocols">
+        <yin:container name="my-stuff">
+          <xsl:call-template name="test">
+            <xsl:with-param name="help" select="&quot;my-stuff help&quot;"/>
+          </xsl:call-template>
+          <yin:leaf name="test">
+            <fred fred-is-cool="this is working"/>
+            <yin:description>
+              <yin:text>
+                <xsl:text>one string; another string</xsl:text>
+              </yin:text>
+            </yin:description>
+            <yin:type name="int">
+              <yin:range value="{$test-min} .. {$test-max}"/>
+            </yin:type>
+            <yin:default value="{$test-default}"/>
+            <yin:must condition="some-function(test)"/>
+          </yin:leaf>
+          <yin:leaf-list name="funky">
+            <yin:description>
+              <yin:text>
+                <xsl:text>Funky stuff</xsl:text>
+              </yin:text>
+            </yin:description>
+            <yin:type name="string"/>
+          </yin:leaf-list>
+          <yin:leaf-list name="funky-too">
+            <yin:description>
+              <yin:text>
+                <xsl:text>More funky stuff</xsl:text>
+              </yin:text>
+            </yin:description>
+            <yin:type name="string"/>
+          </yin:leaf-list>
+        </yin:container>
+      </yin:augment>
+    </yin:module>
+  </xsl:template>
+</xsl:stylesheet>

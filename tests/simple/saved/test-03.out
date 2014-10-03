@@ -1,0 +1,650 @@
+<?xml version="1.0"?>
+<yin:module xmlns="http://acme.example.com/system" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" name="acme-system">
+  <yin:namespace uri="http://acme.example.com/system"/>
+  <yin:prefix value="acme"/>
+  <yin:organization>
+    <yin:text>ACME Inc.</yin:text>
+  </yin:organization>
+  <yin:contact>
+    <yin:text>joe@acme.example.com</yin:text>
+  </yin:contact>
+  <yin:description>
+    <yin:text>The module for entities implementing the ACME system.</yin:text>
+  </yin:description>
+  <yin:revision date="2007-06-09">
+    <yin:description>
+      <yin:text>Initial revision.</yin:text>
+    </yin:description>
+  </yin:revision>
+  <yin:container name="system">
+    <yin:leaf name="host-name">
+      <yin:type name="string"/>
+      <yin:description>
+        <yin:text>Hostname for this system</yin:text>
+      </yin:description>
+    </yin:leaf>
+    <yin:leaf-list name="domain-search">
+      <yin:type name="string"/>
+      <yin:description>
+        <yin:text>List of domain names to search</yin:text>
+      </yin:description>
+    </yin:leaf-list>
+    <yin:container name="login">
+      <yin:leaf name="message">
+        <yin:type name="string"/>
+        <yin:description>
+          <yin:text>Message given at start of login session</yin:text>
+        </yin:description>
+      </yin:leaf>
+      <yin:list name="user">
+        <yin:key value="name"/>
+        <yin:leaf name="name">
+          <yin:type name="string"/>
+        </yin:leaf>
+        <yin:leaf name="full-name">
+          <yin:type name="string"/>
+        </yin:leaf>
+        <yin:leaf name="class">
+          <yin:type name="string"/>
+        </yin:leaf>
+      </yin:list>
+    </yin:container>
+  </yin:container>
+  <yin:list name="interface">
+    <yin:key value="name"/>
+    <yin:leaf name="name">
+      <yin:type name="string"/>
+    </yin:leaf>
+    <yin:leaf name="speed">
+      <yin:type name="enumeration">
+        <yin:enum name="10m"/>
+        <yin:enum name="100m"/>
+        <yin:enum name="auto"/>
+      </yin:type>
+    </yin:leaf>
+    <yin:leaf name="observed-speed">
+      <yin:type name="uint32"/>
+      <yin:config value="false"/>
+    </yin:leaf>
+  </yin:list>
+  <yin:typedef name="percent">
+    <yin:type name="uint8">
+      <yin:range/>
+    </yin:type>
+    <yin:description>
+      <yin:text>Percentage</yin:text>
+    </yin:description>
+  </yin:typedef>
+  <yin:leaf name="completed">
+    <yin:type name="percent"/>
+  </yin:leaf>
+  <yin:grouping name="target">
+    <yin:leaf name="address">
+      <yin:type name="inet:ip-address"/>
+      <yin:description>
+        <yin:text>Target IP address</yin:text>
+      </yin:description>
+    </yin:leaf>
+    <yin:leaf name="port">
+      <yin:type name="inet:port-number"/>
+      <yin:description>
+        <yin:text>Target port number</yin:text>
+      </yin:description>
+    </yin:leaf>
+  </yin:grouping>
+  <yin:container name="peer">
+    <yin:container name="destination">
+      <yin:uses name="target"/>
+    </yin:container>
+  </yin:container>
+  <yin:container name="connection">
+    <yin:container name="source">
+      <yin:uses name="target">
+        <yin:refine target-node="address">
+          <yin:description>
+            <yin:text>Source IP address</yin:text>
+          </yin:description>
+        </yin:refine>
+        <yin:refine target-node="port">
+          <yin:description>
+            <yin:text>Source port number</yin:text>
+          </yin:description>
+        </yin:refine>
+      </yin:uses>
+    </yin:container>
+    <yin:container name="destination">
+      <yin:uses name="target">
+        <yin:refine target-node="address">
+          <yin:description>
+            <yin:text>Destination IP address</yin:text>
+          </yin:description>
+        </yin:refine>
+        <yin:refine target-node="port">
+          <yin:description>
+            <yin:text>Destination port number</yin:text>
+          </yin:description>
+        </yin:refine>
+      </yin:uses>
+    </yin:container>
+  </yin:container>
+  <yin:container name="food">
+    <yin:choice name="snack">
+      <yin:case name="sports-arena">
+        <yin:leaf name="pretzel">
+          <yin:type name="empty"/>
+        </yin:leaf>
+        <yin:leaf name="beer">
+          <yin:type name="empty"/>
+        </yin:leaf>
+      </yin:case>
+      <yin:case name="late-night">
+        <yin:leaf name="chocolate">
+          <yin:type name="enumeration">
+            <yin:enum name="dark"/>
+            <yin:enum name="milk"/>
+            <yin:enum name="first-available"/>
+          </yin:type>
+        </yin:leaf>
+      </yin:case>
+    </yin:choice>
+  </yin:container>
+  <yin:augment target-node="/system/login/user">
+    <yin:when condition="class != 'wheel'"/>
+    <yin:leaf name="uid">
+      <yin:type name="uint16">
+        <yin:range/>
+      </yin:type>
+    </yin:leaf>
+  </yin:augment>
+  <yin:rpc name="activate-software-image">
+    <yin:input>
+      <yin:leaf name="image-name">
+        <yin:type name="string"/>
+      </yin:leaf>
+    </yin:input>
+    <yin:output>
+      <yin:leaf name="status">
+        <yin:type name="string"/>
+      </yin:leaf>
+    </yin:output>
+  </yin:rpc>
+  <yin:notification name="link-failure">
+    <yin:description>
+      <yin:text>A link failure has been detected</yin:text>
+    </yin:description>
+    <yin:leaf name="if-name">
+      <yin:type name="leafref">
+        <yin:path value="/interface/name"/>
+      </yin:type>
+    </yin:leaf>
+    <yin:leaf name="if-admin-status">
+      <yin:type name="admin-status"/>
+    </yin:leaf>
+    <yin:leaf name="if-oper-status">
+      <yin:type name="oper-status"/>
+    </yin:leaf>
+  </yin:notification>
+  <yin:list name="server">
+    <yin:key value="name"/>
+    <yin:unique tag="ip port"/>
+    <yin:leaf name="name">
+      <yin:type name="string"/>
+    </yin:leaf>
+    <yin:leaf name="ip">
+      <yin:type name="inet:ip-address"/>
+    </yin:leaf>
+    <yin:leaf name="port">
+      <yin:type name="inet:port-number"/>
+    </yin:leaf>
+  </yin:list>
+  <yin:container name="transfer">
+    <yin:choice name="how">
+      <yin:default value="interval"/>
+      <yin:case name="interval">
+        <yin:leaf name="interval">
+          <yin:type name="uint16"/>
+          <yin:default value="30"/>
+          <yin:units name="minutes"/>
+        </yin:leaf>
+      </yin:case>
+      <yin:case name="daily">
+        <yin:leaf name="daily">
+          <yin:type name="empty"/>
+        </yin:leaf>
+        <yin:leaf name="time-of-day">
+          <yin:type name="string"/>
+          <yin:units name="24-hour-clock"/>
+          <yin:default value="1am"/>
+        </yin:leaf>
+      </yin:case>
+      <yin:case name="manual">
+        <yin:leaf name="manual">
+          <yin:type name="empty"/>
+        </yin:leaf>
+      </yin:case>
+    </yin:choice>
+  </yin:container>
+  <yin:container name="protocol">
+    <yin:choice name="name">
+      <yin:case name="a">
+        <yin:leaf name="udp">
+          <yin:type name="empty"/>
+        </yin:leaf>
+      </yin:case>
+      <yin:case name="b">
+        <yin:leaf name="tcp">
+          <yin:type name="empty"/>
+        </yin:leaf>
+      </yin:case>
+    </yin:choice>
+  </yin:container>
+  <yin:feature name="local-storage">
+    <yin:description>
+      <yin:text>This feature means the device supports local
+               storage (memory, flash or disk) that can be used to
+               store syslog messages.</yin:text>
+    </yin:description>
+  </yin:feature>
+  <yin:container name="syslog">
+    <yin:leaf name="local-storage-limit">
+      <yin:if-feature name="local-storage"/>
+      <yin:type name="uint64"/>
+      <yin:units name="kilobyte"/>
+      <yin:config value="false"/>
+      <yin:description>
+        <yin:text>The amount of local storage that can be
+                   used to hold syslog messages.</yin:text>
+      </yin:description>
+    </yin:leaf>
+  </yin:container>
+  <yin:typedef name="my-decimal">
+    <yin:type name="decimal64">
+      <yin:fraction-digits value="2"/>
+      <yin:range/>
+    </yin:type>
+  </yin:typedef>
+  <yin:leaf name="string-node">
+    <yin:type name="string">
+      <yin:length/>
+      <yin:pattern value="[0-9a-fA-F]*"/>
+    </yin:type>
+  </yin:leaf>
+  <yin:leaf name="myenum">
+    <yin:type name="enumeration">
+      <yin:enum name="zero"/>
+      <yin:enum name="one"/>
+      <yin:enum name="seven">
+        <yin:value value="7"/>
+      </yin:enum>
+    </yin:type>
+  </yin:leaf>
+  <yin:leaf name="mybits">
+    <yin:type name="bits">
+      <yin:bit name="disable-nagle">
+        <yin:position value="0"/>
+      </yin:bit>
+      <yin:bit name="auto-sense-speed">
+        <yin:position value="1"/>
+      </yin:bit>
+      <yin:bit name="10-Mb-only">
+        <yin:position value="2"/>
+      </yin:bit>
+    </yin:type>
+    <yin:default value="auto-sense-speed"/>
+  </yin:leaf>
+  <yin:list name="interface">
+    <yin:key value="name"/>
+    <yin:leaf name="name">
+      <yin:type name="string"/>
+    </yin:leaf>
+    <yin:leaf name="admin-status">
+      <yin:type name="admin-status"/>
+    </yin:leaf>
+    <yin:list name="address">
+      <yin:key value="ip"/>
+      <yin:leaf name="ip">
+        <yin:type name="yang:ip-address"/>
+      </yin:leaf>
+    </yin:list>
+  </yin:list>
+  <yin:container name="default-address">
+    <yin:leaf name="ifname">
+      <yin:type name="leafref">
+        <yin:path value="../../interface/name"/>
+      </yin:type>
+    </yin:leaf>
+    <yin:leaf name="address">
+      <yin:type name="leafref">
+        <yin:path value="../../interface[name = current()/../ifname]/address/ip"/>
+      </yin:type>
+    </yin:leaf>
+  </yin:container>
+  <yin:notification name="link-failure">
+    <yin:leaf name="if-name">
+      <yin:type name="leafref">
+        <yin:path value="/interface/name"/>
+      </yin:type>
+    </yin:leaf>
+    <yin:leaf name="admin-status">
+      <yin:type name="leafref">
+        <yin:path value="/interface[name = current()/../if-name]/admin-status"/>
+      </yin:type>
+    </yin:leaf>
+  </yin:notification>
+  <yin:leaf name="union-node">
+    <yin:type name="union">
+      <yin:type name="int32"/>
+      <yin:type name="enumeration">
+        <yin:enum name="unbounded"/>
+      </yin:type>
+    </yin:type>
+  </yin:leaf>
+</yin:module>
+module acme-system {
+    namespace "http://acme.example.com/system";
+    prefix acme;
+    organization "ACME Inc.";
+    contact joe@acme.example.com;
+    description "The module for entities implementing the ACME system.";
+    revision 2007-06-09 {
+        description "Initial revision.";
+    }
+    container system {
+        leaf host-name {
+            type string;
+            description "Hostname for this system";
+        }
+        leaf-list domain-search {
+            type string;
+            description "List of domain names to search";
+        }
+        container login {
+            leaf message {
+                type string;
+                description "Message given at start of login session";
+            }
+            list user {
+                key name;
+                leaf name {
+                    type string;
+                }
+                leaf full-name {
+                    type string;
+                }
+                leaf class {
+                    type string;
+                }
+            }
+        }
+    }
+    list interface {
+        key name;
+        leaf name {
+            type string;
+        }
+        leaf speed {
+            type enumeration {
+                enum 10m;
+                enum 100m;
+                enum auto;
+            }
+        }
+        leaf observed-speed {
+            type uint32;
+            config false;
+        }
+    }
+    typedef percent {
+        type uint8 {
+            range;
+        }
+        description Percentage;
+    }
+    leaf completed {
+        type percent;
+    }
+    grouping target {
+        leaf address {
+            type inet:ip-address;
+            description "Target IP address";
+        }
+        leaf port {
+            type inet:port-number;
+            description "Target port number";
+        }
+    }
+    container peer {
+        container destination {
+            uses target;
+        }
+    }
+    container connection {
+        container source {
+            uses target {
+                refine address {
+                    description "Source IP address";
+                }
+                refine port {
+                    description "Source port number";
+                }
+            }
+        }
+        container destination {
+            uses target {
+                refine address {
+                    description "Destination IP address";
+                }
+                refine port {
+                    description "Destination port number";
+                }
+            }
+        }
+    }
+    container food {
+        choice snack {
+            case sports-arena {
+                leaf pretzel {
+                    type empty;
+                }
+                leaf beer {
+                    type empty;
+                }
+            }
+            case late-night {
+                leaf chocolate {
+                    type enumeration {
+                        enum dark;
+                        enum milk;
+                        enum first-available;
+                    }
+                }
+            }
+        }
+    }
+    augment /system/login/user {
+        when "class != 'wheel'";
+        leaf uid {
+            type uint16 {
+                range;
+            }
+        }
+    }
+    rpc activate-software-image {
+        input {
+            leaf image-name {
+                type string;
+            }
+        }
+        output {
+            leaf status {
+                type string;
+            }
+        }
+    }
+    notification link-failure {
+        description "A link failure has been detected";
+        leaf if-name {
+            type leafref {
+                path /interface/name;
+            }
+        }
+        leaf if-admin-status {
+            type admin-status;
+        }
+        leaf if-oper-status {
+            type oper-status;
+        }
+    }
+    list server {
+        key name;
+        unique "ip port";
+        leaf name {
+            type string;
+        }
+        leaf ip {
+            type inet:ip-address;
+        }
+        leaf port {
+            type inet:port-number;
+        }
+    }
+    container transfer {
+        choice how {
+            default interval;
+            case interval {
+                leaf interval {
+                    type uint16;
+                    default 30;
+                    units minutes;
+                }
+            }
+            case daily {
+                leaf daily {
+                    type empty;
+                }
+                leaf time-of-day {
+                    type string;
+                    units 24-hour-clock;
+                    default 1am;
+                }
+            }
+            case manual {
+                leaf manual {
+                    type empty;
+                }
+            }
+        }
+    }
+    container protocol {
+        choice name {
+            case a {
+                leaf udp {
+                    type empty;
+                }
+            }
+            case b {
+                leaf tcp {
+                    type empty;
+                }
+            }
+        }
+    }
+    feature local-storage {
+        description "This feature means the device supports local
+               storage (memory, flash or disk) that can be used to
+               store syslog messages.";
+    }
+    container syslog {
+        leaf local-storage-limit {
+            if-feature local-storage;
+            type uint64;
+            units kilobyte;
+            config false;
+            description "The amount of local storage that can be
+                   used to hold syslog messages.";
+        }
+    }
+    typedef my-decimal {
+        type decimal64 {
+            fraction-digits 2;
+            range;
+        }
+    }
+    leaf string-node {
+        type string {
+            length;
+            pattern [0-9a-fA-F]*;
+        }
+    }
+    leaf myenum {
+        type enumeration {
+            enum zero;
+            enum one;
+            enum seven {
+                value 7;
+            }
+        }
+    }
+    leaf mybits {
+        type bits {
+            bit disable-nagle {
+                position 0;
+            }
+            bit auto-sense-speed {
+                position 1;
+            }
+            bit 10-Mb-only {
+                position 2;
+            }
+        }
+        default auto-sense-speed;
+    }
+    list interface {
+        key name;
+        leaf name {
+            type string;
+        }
+        leaf admin-status {
+            type admin-status;
+        }
+        list address {
+            key ip;
+            leaf ip {
+                type yang:ip-address;
+            }
+        }
+    }
+    container default-address {
+        leaf ifname {
+            type leafref {
+                path ../../interface/name;
+            }
+        }
+        leaf address {
+            type leafref {
+                path "../../interface[name = current()/../ifname]/address/ip";
+            }
+        }
+    }
+    notification link-failure {
+        leaf if-name {
+            type leafref {
+                path /interface/name;
+            }
+        }
+        leaf admin-status {
+            type leafref {
+                path "/interface[name = current()/../if-name]/admin-status";
+            }
+        }
+    }
+    leaf union-node {
+        type union {
+            type int32;
+            type enumeration {
+                enum unbounded;
+            }
+        }
+    }
+}
+

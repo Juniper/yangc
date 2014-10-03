@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:yin="urn:ietf:params:xml:ns:yang:yin:1" xmlns:yangc="http://juise.org/yangc/1.0" version="1.0">
+  <xsl:template match="/features">
+    <yin:module xmlns="http://example.com/foo" name="foo">
+      <yin:prefix value="foo"/>
+      <yin:namespace uri="http://example.com/foo"/>
+      <yin:import module="goo"/>
+      <yin:extension name="mumble">
+        <yin:argument name="this&quot;"/>
+        <yangc:parents names="grouping typedef"/>
+      </yin:extension>
+      <yin:grouping name="foo">
+        <yin:leaf name="foo-leaf">
+          <yin:type name="int"/>
+        </yin:leaf>
+      </yin:grouping>
+      <yin:container name="foo">
+        <yin:uses name="foo:contents"/>
+        <yin:uses name="goo:contents"/>
+      </yin:container>
+    </yin:module>
+  </xsl:template>
+</xsl:stylesheet>
