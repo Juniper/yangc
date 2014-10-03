@@ -196,7 +196,9 @@ main (int argc UNUSED, char **argv)
     int use_exslt = TRUE;
     char *opt_log_file = NULL;
 
+#if 0
     setenv("MallocScribble", "true", 1);
+#endif
 
     slaxDataListInit(&plist);
     slaxDataListInit(&param_files);
