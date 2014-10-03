@@ -1,9 +1,0 @@
-submodule base {
-    param $BIG-NUMBER = 1000000;
-
-    typedef big-number {
-        type int {
-            range 0 .. $BIG-NUMBER;
-        }
-    }
-}
