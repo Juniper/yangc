@@ -517,6 +517,8 @@ AC_CONFIG_FILES([
   libyang/Makefile
   libyang/yangversion.h
   yangc/Makefile
+  tests/Makefile
+  tests/simple/Makefile
   packaging/yangc.pc
 ])
 AC_OUTPUT
