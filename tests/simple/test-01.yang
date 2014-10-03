@@ -21,7 +21,7 @@ module foo {
 	container my-stuff {
 	    call test($help = "my-stuff help");
 	    leaf test {
-	        f:fred "this is working";
+	        foo:fred "this is working";
 		description "one string" + "; another string";
 		type int {
 		    range $test-min .. $test-max;
