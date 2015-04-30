@@ -487,3 +487,17 @@ yangStmtInit (void)
     TAILQ_INIT(&yangStmtList);
     yangStmtInitBuiltin();
 }
+
+xmlNodePtr
+slaxPopToRoot (slax_data_t *sdp)
+{
+    xmlNodePtr node, node_save;
+
+    node = node_save = sdp->sd_ctxt->node;
+    while (node && node->parent && node->parent->parent)
+	node = node->parent;
+
+    sdp->sd_ctxt->node = node;
+
+    return node_save;
+}
