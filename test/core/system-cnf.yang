@@ -541,7 +541,7 @@ submodule junos-system {
                 enum removable-compact-flash {
                     help "Use the removable compact flash for "
                         "software failure memory snapshots";
-                    product pepsi12 pepsi45 j2320 j2350 jsr2320 jsr2350;
+                    product $J_SERIES;
                 }
             }
             action propagate {
