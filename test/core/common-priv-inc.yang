@@ -855,7 +855,7 @@ submodule common-priv-inc {
      * if the package given is not installed.
      *
      * GGSN can key off of the jggsn package.  Jcrypto and jweb "tests"
-     * need to work on both M&T and on Pepsi, so we need to key off of
+     * need to work on both M&T and on other related products, so we need to key off of
      * the presence of something else, in this case, a daemon
      */
     grouping ggsn-installed {
