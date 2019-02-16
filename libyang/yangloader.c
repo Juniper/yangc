@@ -290,8 +290,6 @@ yangFileParse (yang_file_list_t *listp, const char *template,
     yfp = yangFileLoadContents(listp, template, name, filename,
 				sourcefile, dict, partial);
 
-    fclose(sourcefile);
-
 #if 0
     yfp->yf_main = yangFindMain(yfp);
     if (yfp->yf_main == NULL) {

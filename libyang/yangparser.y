@@ -1085,6 +1085,14 @@ explicit_named_template :
 	K_TEMPLATE template_name
 		{
 		    ALL_KEYWORDS_ON();
+
+		    /*
+		     * making a template, it has to be a child of the
+		     * 'root' node which is the stylesheet
+		     * note that this means that template procs must come
+		     * after modules
+		     */
+		    slaxPopToRoot(slax_data);
 		    slaxElementPush(slax_data, ELT_TEMPLATE,
 				    ATT_NAME, $2->ss_token);
 		    $$ = NULL;

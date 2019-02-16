@@ -164,3 +164,6 @@ yangStmtGetValue (slax_data_t *sdp, xmlNodePtr nodep, yang_stmt_t *ysp);
 
 void
 yangStmtCheckArgument (slax_data_t *sdp, slax_string_t *sp);
+
+xmlNodePtr
+slaxPopToRoot (slax_data_t *sdp);
